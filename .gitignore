@@ -3,5 +3,6 @@ venv/
 *.pyc
 *.pyo
 .env
-token.json
-credentials.json
+backend/token.json
+backend/credentials.json
+.DS_Store
