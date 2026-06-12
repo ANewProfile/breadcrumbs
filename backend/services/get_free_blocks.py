@@ -1,6 +1,6 @@
 # backend/services/scheduler.py
 from datetime import datetime, timedelta, timezone
-from zoneinfor import ZoneInfo
+from zoneinfo import ZoneInfo
 
 def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "22:00", tz_str: str = "America/New_York") -> list:
     tz = ZoneInfo(tz_str)
@@ -36,8 +36,8 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
         day_busy = []
         for s, e in busy:
             if s < window_end and e > window_start:
-                clipped_start = max(s, window_end)
-                clipped_end = min(e, window_start)
+                clipped_start = max(s, window_start)
+                clipped_end = min(e, window_end)
                 day_busy.append((clipped_start, clipped_end))
 
         day_busy.sort(key=lambda x: x[0])
@@ -51,14 +51,13 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
         cursor = window_start
         for s, e in merged:
             if cursor < s:
-                duration = int((s - cusor).total_seconds() / 60)
+                duration = int((s - cursor).total_seconds() / 60)
                 free_blocks.append({"start": cursor, "end": s, "duration_min": duration})
-
-            cursor = e
+            cursor = max(cursor, e)
 
         if cursor < window_end:
             duration = int((window_end - cursor).total_seconds() / 60)
-            free_blocks.append({"start": cursor, "end": window_end, "duration_min"; duration})
+            free_blocks.append({"start": cursor, "end": window_end, "duration_min": duration})
 
         current_date += timedelta(days=1)
 

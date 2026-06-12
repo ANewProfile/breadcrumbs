@@ -2,7 +2,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import tasks, schedule
-from database import tasks_collection
 
 app = FastAPI()
 
