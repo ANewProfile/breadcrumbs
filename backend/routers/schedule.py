@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from bson import ObjectId
 from auth.google_auth import get_credentials
 from services.calendar_service import get_events
 from services.get_free_blocks import compute_free_blocks
@@ -20,6 +21,13 @@ def run_schedule():
         raise HTTPException(status_code=400, detail="No pending tasks to schedule")
 
     assignments = assign_tasks(pending_tasks, free_blocks)
+
+    for task_id, block in assignments.items():
+        tasks_collection.update_one(
+            {"_id": ObjectId(task_id)},
+            {"$set": {"status": "scheduled", "scheduled_blocks": [block]}},
+        )
+
     return {"free_blocks": [
         {**b, "start": b["start"].isoformat(), "end": b["end"].isoformat()}
         for b in free_blocks
