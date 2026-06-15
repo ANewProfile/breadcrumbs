@@ -4,122 +4,147 @@
 
 Build an MVP of **Breadcrumbs**: a single-user student productivity app that reads Google Calendar to find free time blocks, then auto-schedules manually entered tasks using subject grouping (cognitive load) and time estimation (weighted average of user estimate + historical actuals). Rule-based for MVP; ML deferred.
 
-**Stack:** Next.js + Tailwind + TypeScript (frontend), FastAPI + Python (backend), MongoDB Atlas (database).
+**Stack:** Next.js 16 + Tailwind v4 + TypeScript (frontend), FastAPI + Python (backend), MongoDB Atlas (database).
 
 ---
 
 ## Current State
 
-### What's done
-- Repo initialized (`/breadcrumbs`, with `/frontend` and `/backend` subdirectories)
-- `.gitignore` includes `.env`, `token.json`, `credentials.json`, `__pycache__/`, `venv/`
-- Next.js app scaffolded via `create-next-app` with TypeScript + Tailwind + App Router
-- Python venv at `backend/venv/` — all dependencies installed; run with `venv/bin/python`
-- MongoDB Atlas cluster connected — URI in `backend/.env`
-- Google Calendar OAuth working — Desktop App credentials, `credentials.json` in `/backend`, token persisted to `token.json` via `run_local_server()`
-- `backend/auth/google_auth.py` — `get_credentials()` written and working
-- `backend/services/calendar_service.py` — `get_events()` fetches raw events from primary calendar
-- `backend/services/get_free_blocks.py` — `compute_free_blocks()` fully written and bug-fixed: parses events, clips to day window, merges overlapping busy blocks, detects gaps ≥15 min, handles timezones via `zoneinfo`
-- `backend/utils.py` — `serialize()` helper written
-- `backend/routers/tasks.py` — all 5 CRUD endpoints written: `POST /tasks`, `GET /tasks`, `PATCH /tasks/{id}`, `PATCH /tasks/{id}/complete`, `DELETE /tasks/{id}`
-- `backend/routers/schedule.py` — `POST /schedule/run` fully wired: fetches calendar, computes free blocks, calls `assign_tasks`, writes results back to MongoDB, returns both
-- `backend/services/scheduler.py` — `assign_tasks` implemented: sorts tasks by subject (cognitive grouping), greedily fits each into the first block large enough, shrinks block after each assignment, returns `{task_id: {start, end}}` with ISO strings
-- `backend/tests/test_scheduler.py` — 7 passing tests covering: single fit, task too large, block shrinking, subject sort order, empty inputs, multi-block spill
-- `backend/main.py` — both routers wired in with correct prefixes, CORS middleware for `localhost:3000`
-- `backend/requirements.txt` — cleaned up
-- `backend/API_TESTING.md` — full curl-based test guide for all endpoints
+### What's working end-to-end
+The full MVP loop works:
+1. User adds tasks via the web UI (title, subject, estimated minutes)
+2. "Run Scheduler" button hits `POST /schedule/run` → reads Google Calendar → computes free blocks → assigns tasks → writes scheduled times back to MongoDB
+3. UI re-renders showing scheduled tasks with their assigned time slots
+4. User clicks "Complete" on a task, enters actual minutes, task is marked done
 
-### What's NOT done yet
-- **Endpoints have NOT been verified against a running server** — do this before anything else
-- `token.json` is missing — `POST /schedule/run` will trigger a browser OAuth flow on first run; let it complete once and the token persists
-- `GET /tasks` has no `?status=` filter param yet — needed for frontend to separate pending from scheduled
-- `tests/test_calendar_service.py` — stub only, imports `pymock` which doesn't exist; leave alone until writing real tests
-- Frontend — untouched
+### What's NOT done yet (known issues)
+- **Form styling is off** — the Add Task form inputs don't look right. The colors are the problem: in Tailwind v4, `<input>` elements render with a transparent background by default so `bg-zinc-50` on the form container shows through the inputs awkwardly. Fix: add `bg-white` explicitly to each `<input>` className in `AddTaskForm.tsx`.
+- **No Google Calendar write-back** — the scheduler reads GCal to find free blocks but never creates events on the calendar for the scheduled tasks. Users have no visibility in GCal of what Breadcrumbs scheduled. This is the next real feature to build (see Next Immediate Steps).
+- **`tests/test_calendar_service.py`** — broken stub that imports `pymock` (not a real package). Leave alone until writing real calendar service tests.
+- **pytest not in `requirements.txt`** — had to install it manually this session. Add `pytest` to `requirements.txt` so the venv is complete from a fresh install.
+- **Unschedulable tasks are silently dropped** — if a task is too long to fit any free block, `assign_tasks` just skips it with no feedback. The UI shows nothing; the task stays "pending" forever with no explanation.
 
-### Files actively being built
+### Files and their status
 ```
 backend/
-├── auth/google_auth.py              ✅ done
-├── services/calendar_service.py     ✅ done
-├── services/get_free_blocks.py      ✅ done
-├── services/scheduler.py            ✅ done (assign_tasks implemented + tested)
-├── routers/tasks.py                 ✅ done
-├── routers/schedule.py              ✅ done (MongoDB write-back wired)
+├── auth/google_auth.py              ✅ done — get_credentials(), OAuth flow, token.json persistence
+├── services/calendar_service.py     ✅ done — get_events() fetches 7 days of primary calendar events
+├── services/get_free_blocks.py      ✅ done — compute_free_blocks(): clips to day window, merges busy, finds gaps ≥15 min
+├── services/scheduler.py            ✅ done — assign_tasks(): sorts by subject, greedy fit, returns {task_id: {start, end}}
+├── services/calendar_write.py       ❌ does not exist yet — needs to be built for GCal write-back
+├── routers/tasks.py                 ✅ done — POST/GET/PATCH/DELETE + status filter on GET
+├── routers/schedule.py              ✅ done — POST /schedule/run wired end-to-end
 ├── routers/__init__.py              ✅ done
-├── utils.py                         ✅ done
-├── database.py                      ✅ done
-├── main.py                          ✅ done
-├── requirements.txt                 ✅ cleaned up
-├── API_TESTING.md                   ✅ done
+├── utils.py                         ✅ done — serialize() converts ObjectId + datetime to JSON-safe types
+├── database.py                      ✅ done — MongoDB Atlas connection, tasks_collection
+├── main.py                          ✅ done — both routers, CORS for localhost:3000
+├── requirements.txt                 ✅ done (but missing pytest — add it)
+├── API_TESTING.md                   ✅ done — curl test guide for all endpoints
 ├── tests/test_scheduler.py          ✅ 7 passing tests
-└── tests/test_calendar_service.py   ⚠️  broken stub, ignore for now
+└── tests/test_calendar_service.py   ⚠️  broken stub, ignore
+
+frontend/
+├── lib/api.ts                       ✅ done — typed fetch wrappers for all FastAPI endpoints
+├── app/actions.ts                   ✅ done — Server Actions: createTask, completeTask, deleteTask, runScheduler
+├── app/page.tsx                     ✅ done — async Server Component, fetches tasks, renders Pending + Scheduled sections
+├── app/layout.tsx                   ✅ done — title "Breadcrumbs", Geist font
+├── app/globals.css                  ✅ done — Tailwind v4 import, base tokens
+├── app/components/AddTaskForm.tsx   ⚠️  works but has styling issue (input colors — see above)
+├── app/components/TaskCard.tsx      ✅ done — shows task, subject badge, scheduled time, inline complete form, delete
+└── app/components/RunSchedulerBtn.tsx ✅ done — Client Component with loading state + error display
 ```
+
+---
+
+## Architecture Notes (important for next session)
+
+### Next.js 16 / React 19 patterns in use
+This is **not** the Next.js you know from training data. Key things that differ:
+
+- **`fetch` is NOT cached by default** in Next.js 16 (opposite of 13/14). No need for `cache: 'no-store'` on reads, but it's included for clarity.
+- **Server Components fetch directly** — `page.tsx` is `async` and calls `fetchTasks()` from `lib/api.ts` server-side. No SWR, no React Query, no `useEffect`.
+- **Server Actions** (in `app/actions.ts` with `"use server"` at top) call the FastAPI backend, then `revalidatePath("/")` to invalidate and re-render the page. This is how mutations trigger UI updates.
+- **`AddTaskForm.tsx` is a Server Component** — no `"use client"`, just a `<form action={createTaskAction}>`. Works with progressive enhancement.
+- **`TaskCard.tsx` and `RunSchedulerBtn.tsx` are Client Components** (`"use client"`) because they need local state (show/hide complete form, loading spinner).
+- **`@/` path alias** resolves to `frontend/` (configured in `tsconfig.json`).
+
+### How to run
+```bash
+# Terminal 1 — backend (from /breadcrumbs/backend)
+venv/bin/uvicorn main:app --reload
+
+# Terminal 2 — frontend (from /breadcrumbs/frontend)
+npm run dev
+```
+Open `http://localhost:3000`. First `POST /schedule/run` opens a browser for Google OAuth if `token.json` is missing — complete it once and it persists.
 
 ---
 
 ## What We Tried That Didn't Work
 
 ### From earlier sessions
-- **Next.js API routes as backend** — rejected. Scheduling logic and future ML are naturally Python; Google Calendar SDK has better Python support; FastAPI is Theo's primary language comfort zone.
-- **Local MongoDB** — started with `brew install mongodb-community` but switched to Atlas. No data loss. Atlas is accessible anywhere and requires no local service management.
-- **Putting `compute_free_blocks` in `calendar_service.py`** — rejected. `calendar_service.py` handles only IO (fetching); computation belongs in its own file. Keeps both independently testable.
-- **`cursor = e` instead of `cursor = max(cursor, e)`** in `compute_free_blocks` — the `max` version is defensive against a bug in the merge step causing a backwards cursor.
-- **`get_free_blocks.py` had five bugs** — all fixed:
+- **Next.js API routes as backend** — rejected. Scheduling logic and future ML are naturally Python; Google Calendar SDK has better Python support; FastAPI is Theo's comfort zone.
+- **Local MongoDB** — started with `brew install mongodb-community`, switched to Atlas. No data loss. Atlas needs no local service management.
+- **Putting `compute_free_blocks` in `calendar_service.py`** — rejected. `calendar_service.py` is IO only; computation in its own file keeps both independently testable.
+- **`cursor = e` instead of `cursor = max(cursor, e)`** in `compute_free_blocks` — the `max` version guards against a bug in the merge step causing a backwards cursor.
+- **Five bugs in `get_free_blocks.py`** — all fixed:
   1. `from zoneinfor import ZoneInfo` → `from zoneinfo import ZoneInfo` (typo)
-  2. `clipped_start = max(s, window_end)` → `max(s, window_start)` (start/end swapped)
-  3. `clipped_end = min(e, window_start)` → `min(e, window_end)` (start/end swapped)
-  4. `cusor` → `cursor` (typo in variable name)
-  5. `"duration_min"; duration` → `"duration_min": duration` (semicolon instead of colon)
-- **`requirements.txt` had conflicting pymongo entries** — `pymongo[srv]==3.12` and `pymongo==4.17.0` both listed. Consolidated to `pymongo[srv]==4.17.0`. Also removed `annotated-doc==0.0.4` (spurious artifact; real package `annotated-types` was already listed).
+  2. `clipped_start = max(s, window_end)` → `max(s, window_start)` (swapped)
+  3. `clipped_end = min(e, window_start)` → `min(e, window_end)` (swapped)
+  4. `cusor` → `cursor` (typo)
+  5. `"duration_min"; duration` → `"duration_min": duration` (semicolon not colon)
+- **Conflicting pymongo entries in `requirements.txt`** — had both `pymongo[srv]==3.12` and `pymongo==4.17.0`. Consolidated to `pymongo[srv]==4.17.0`. Also removed `annotated-doc==0.0.4` (spurious; real package `annotated-types` was already listed).
 - **`test_calendar_service.py` imports `pymock`** — not a real package. Tests were never finished. Left alone.
-
-### This session
-- **venv was missing** — `backend/venv/` did not exist despite being listed as done in the previous handoff. Recreated with `python3 -m venv venv && venv/bin/pip install -r requirements.txt`. Always activate with `venv/bin/python` or `venv/bin/uvicorn`, not the system Python.
+- **venv was missing despite being listed as done** — recreated with `python3 -m venv venv && venv/bin/pip install -r requirements.txt`. Always use `venv/bin/python` / `venv/bin/uvicorn`, not system Python.
+- **SWR/React Query for data fetching** — considered, but unnecessary in Next.js 16. Server Components fetch directly; Server Actions + `revalidatePath` handle post-mutation refresh. Zero client-side data fetching libraries needed.
 
 ---
 
 ## Next Immediate Steps
 
-**1. Verify all endpoints** using `backend/API_TESTING.md`.
+### 1. Fix form input colors (quick)
+In `frontend/app/components/AddTaskForm.tsx`, each `<input>` needs `bg-white` added to its `className`. Currently inputs inherit the `bg-zinc-50` of their container through transparency, making the borders look faint and the fields blend together. The fix is a one-liner per input:
 
-```bash
-cd backend && venv/bin/uvicorn main:app --reload
+```tsx
+className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
 ```
 
-Work through the guide top to bottom. The scheduler endpoint (`POST /schedule/run`) requires `token.json` — if it's missing, `get_credentials()` opens a browser for OAuth. Complete that flow once and the token persists.
+### 2. Write scheduled tasks back to Google Calendar
 
-**2. Add a `status` filter to `GET /tasks`** so the frontend can query pending and scheduled tasks separately:
+Create `backend/services/calendar_write.py`:
 
 ```python
-@router.get("")
-def list_tasks(status: str | None = None):
-    query = {"status": {"$ne": "done"}}
-    if status:
-        query = {"status": status}
-    return [serialize(t) for t in tasks_collection.find(query)]
+from googleapiclient.discovery import build
+
+def create_gcal_event(creds, title: str, start_iso: str, end_iso: str) -> str:
+    service = build("calendar", "v3", credentials=creds)
+    event = {
+        "summary": f"[Breadcrumbs] {title}",
+        "start": {"dateTime": start_iso},
+        "end": {"dateTime": end_iso},
+    }
+    result = service.events().insert(calendarId="primary", body=event).execute()
+    return result["id"]  # store this so we can delete/update the event later
 ```
 
-**3. Start the frontend.** Minimum viable UI in order:
-1. Task list — shows all pending/scheduled tasks with subject tag and scheduled time if assigned
-2. Add task form — title, subject dropdown, estimated minutes input
-3. "Run scheduler" button — calls `POST /schedule/run`, refreshes list
-4. Mark complete — prompts for actual minutes, calls `PATCH /{id}/complete`
+Then in `backend/routers/schedule.py`, after the MongoDB write-back loop, call `create_gcal_event` for each assigned task and store the returned `gcal_event_id` on the task document. You'll need to fetch the task title from MongoDB (you already have the task objects in `pending_tasks`).
 
-Use **SWR or React Query** for data fetching. Keep API calls in `frontend/lib/api.ts`. No calendar view needed for MVP.
+The `gcal_event_id` should be stored on the task in MongoDB so that if a task is deleted or re-scheduled, the event can be removed from GCal too (future work, but set up the field now).
+
+### 3. Surface unschedulable tasks (after GCal write-back)
+`assign_tasks` currently silently skips tasks that don't fit any free block. The fix: return a second value — a list of task IDs that couldn't be scheduled. In `schedule.py`, after the assignment loop, update those tasks with `status: "unschedulable"` and surface them in the UI with a warning.
 
 ---
 
 ## Roadmap
 
-### Short term — after frontend MVP
-- Weighted time estimate: once a subject has ≥5 completions with logged `actual_minutes`, switch to `0.6 * mean(actual_minutes) + 0.4 * user_estimate`
-- Surface unschedulable tasks (no block large enough) to user instead of silently dropping them
-- Split tasks longer than any single free block, or flag them
-- Configurable `day_start`, `day_end`, timezone stored in the `settings` collection
+### Short term
+- Weighted time estimate: once a subject has ≥5 completions, switch to `0.6 * mean(actual_minutes) + 0.4 * user_estimate`
+- Configurable `day_start`, `day_end`, timezone in a `settings` MongoDB collection
+- Delete GCal event when a task is deleted or marked done
 
 ### Post-MVP (out of scope for now)
 - Real auth / multi-user support
-- Write scheduled tasks back to Google Calendar as events
 - ML-based time prediction
 - Canvas / Google Classroom integration
 - Mobile UI

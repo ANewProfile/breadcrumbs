@@ -40,8 +40,9 @@ def create_task(body: TaskIn):
 
 
 @router.get("")
-def list_tasks():
-    return [serialize(t) for t in tasks_collection.find({"status": {"$ne": "done"}})]
+def list_tasks(status: str | None = None):
+    query = {"status": status} if status else {"status": {"$ne": "done"}}
+    return [serialize(t) for t in tasks_collection.find(query)]
 
 
 @router.patch("/{task_id}")
