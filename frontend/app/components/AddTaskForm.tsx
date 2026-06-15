@@ -14,14 +14,14 @@ export function AddTaskForm() {
         type="text"
         required
         placeholder="Task title"
-        className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+        className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
       />
       <input
         name="subject"
         type="text"
         required
         placeholder="Subject (e.g. Math, CS, English)"
-        className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+        className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
       />
       <div className="flex items-center gap-2">
         <input
@@ -30,7 +30,7 @@ export function AddTaskForm() {
           required
           min="1"
           placeholder="Est. minutes"
-          className="border border-zinc-300 rounded-lg px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+          className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-zinc-400"
         />
         <span className="text-sm text-zinc-500">minutes</span>
       </div>
