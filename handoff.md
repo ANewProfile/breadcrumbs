@@ -4,7 +4,7 @@
 
 Build an MVP of **Breadcrumbs**: a single-user student productivity app that reads Google Calendar to find free time blocks, then auto-schedules manually entered tasks using subject grouping (cognitive load) and time estimation (weighted average of user estimate + historical actuals). Rule-based for MVP; ML deferred.
 
-**Stack:** Next.js 16 + Tailwind v4 + TypeScript (frontend), FastAPI + Python (backend), MongoDB Atlas (database).
+**Stack:** Next.js 16 + Tailwind v4 + TypeScript (frontend), FastAPI + Python (backend), MongoDB (database — local for dev, Atlas for prod).
 
 ---
 
@@ -17,12 +17,20 @@ The full MVP loop works:
 3. UI re-renders showing scheduled tasks with their assigned time slots
 4. User clicks "Complete" on a task, enters actual minutes, task is marked done
 
-### What's NOT done yet (known issues)
-- **Form styling is off** — the Add Task form inputs don't look right. The colors are the problem: in Tailwind v4, `<input>` elements render with a transparent background by default so `bg-zinc-50` on the form container shows through the inputs awkwardly. Fix: add `bg-white` explicitly to each `<input>` className in `AddTaskForm.tsx`.
-- **No Google Calendar write-back** — the scheduler reads GCal to find free blocks but never creates events on the calendar for the scheduled tasks. Users have no visibility in GCal of what Breadcrumbs scheduled. This is the next real feature to build (see Next Immediate Steps).
+MongoDB is unblocked: the rogue manually-started `mongod --auth --bind_ip_all` was killed, `mongod` restarted via `sudo systemctl start mongod` (uses `/etc/mongod.conf` which has `#security:` commented out — no auth, binds to `127.0.0.1` only). `backend/.env` now exists with `MONGODB_URI=mongodb://localhost:27017`.
+
+### What's NOT working right now (blocking)
+- **UI contrast / dark mode** — Tailwind v4's preflight injects `color-scheme: dark light` when the OS is in dark mode. This causes:
+  - The page background to go dark while `text-zinc-900` (hardcoded in `page.tsx`) stays near-black → invisible title
+  - Native form elements (inputs) to render placeholder text in a light color even when `bg-white` is set → invisible placeholder text
+- **Attempted fixes this session:**
+  1. Removed the `@media (prefers-color-scheme: dark)` block from `globals.css` — didn't help because Tailwind's own preflight still respects OS dark mode
+  2. Added `color-scheme: light` to `:root` in `globals.css` — applied at end of session, **not yet confirmed to work**
+
+### Other known issues
+- **No Google Calendar write-back** — the scheduler reads GCal to find free blocks but never creates events on the calendar for the scheduled tasks.
+- **Unschedulable tasks are silently dropped** — if a task is too long to fit any free block, `assign_tasks` just skips it with no feedback.
 - **`tests/test_calendar_service.py`** — broken stub that imports `pymock` (not a real package). Leave alone until writing real calendar service tests.
-- **pytest not in `requirements.txt`** — had to install it manually this session. Add `pytest` to `requirements.txt` so the venv is complete from a fresh install.
-- **Unschedulable tasks are silently dropped** — if a task is too long to fit any free block, `assign_tasks` just skips it with no feedback. The UI shows nothing; the task stays "pending" forever with no explanation.
 
 ### Files and their status
 ```
@@ -36,9 +44,10 @@ backend/
 ├── routers/schedule.py              ✅ done — POST /schedule/run wired end-to-end
 ├── routers/__init__.py              ✅ done
 ├── utils.py                         ✅ done — serialize() converts ObjectId + datetime to JSON-safe types
-├── database.py                      ✅ done — MongoDB Atlas connection, tasks_collection
-├── main.py                          ✅ done — both routers, CORS for localhost:3000
-├── requirements.txt                 ✅ done (but missing pytest — add it)
+├── database.py                      ✅ done — TLS-conditional connection, falls back to localhost:27017
+├── main.py                          ✅ done — both routers, CORS for localhost:3000 and :3001
+├── .env                             ✅ created — MONGODB_URI=mongodb://localhost:27017
+├── requirements.txt                 ✅ done (missing pytest — add it)
 ├── API_TESTING.md                   ✅ done — curl test guide for all endpoints
 ├── tests/test_scheduler.py          ✅ 7 passing tests
 └── tests/test_calendar_service.py   ⚠️  broken stub, ignore
@@ -48,8 +57,8 @@ frontend/
 ├── app/actions.ts                   ✅ done — Server Actions: createTask, completeTask, deleteTask, runScheduler
 ├── app/page.tsx                     ✅ done — async Server Component, fetches tasks, renders Pending + Scheduled sections
 ├── app/layout.tsx                   ✅ done — title "Breadcrumbs", Geist font
-├── app/globals.css                  ✅ done — Tailwind v4 import, base tokens
-├── app/components/AddTaskForm.tsx   ⚠️  works but has styling issue (input colors — see above)
+├── app/globals.css                  ⚠️  dark mode contrast fix applied but unconfirmed (see above)
+├── app/components/AddTaskForm.tsx   ✅ styling fixed — inputs have explicit bg-white
 ├── app/components/TaskCard.tsx      ✅ done — shows task, subject badge, scheduled time, inline complete form, delete
 └── app/components/RunSchedulerBtn.tsx ✅ done — Client Component with loading state + error display
 ```
@@ -74,45 +83,57 @@ This is **not** the Next.js you know from training data. Key things that differ:
 venv/bin/uvicorn main:app --reload
 
 # Terminal 2 — frontend (from /breadcrumbs/frontend)
-npm run dev
+npm run dev   # binds to :3001 because :3000 is taken
 ```
-Open `http://localhost:3000`. First `POST /schedule/run` opens a browser for Google OAuth if `token.json` is missing — complete it once and it persists.
+Open `http://localhost:3001`. First `POST /schedule/run` opens a browser for Google OAuth if `token.json` is missing — complete it once and it persists.
+
+### MongoDB (local dev)
+- `mongod` is managed via `sudo systemctl start/stop mongod`
+- Config at `/etc/mongod.conf` — `#security:` is commented out (no auth), `bindIp: 127.0.0.1`
+- If mongod is restarted with `--auth --bind_ip_all` flags (happens if started manually), the localhost exception is disabled and nothing can authenticate. Always start via systemctl.
 
 ---
 
-## What We Tried That Didn't Work
+## Everything We Tried That Didn't Work
+
+### This session — UI contrast (dark mode)
+
+**Problem:** System is in dark mode. Title (`text-zinc-900`) was invisible on dark background; input placeholder text was invisible on light input background.
+
+**Attempt 1:** Removed `@media (prefers-color-scheme: dark)` block from `globals.css`.
+- Did not fix it. The CSS variable block only controlled our `--background`/`--foreground` custom properties. Tailwind v4's own preflight still honors OS dark mode independently, causing the body background and form elements to render dark.
+
+**Attempt 2:** Added `color-scheme: light` to `:root` in `globals.css`.
+- This is the correct fix — it tells the browser to always use the light color scheme for all elements, including native form controls and their placeholder text.
+- **Not yet confirmed** — applied at end of session. If it didn't work, investigate whether Tailwind v4's `@import "tailwindcss"` preflight overrides `color-scheme` on `:root` and try setting it on `html` or `body` instead, or add `color-scheme: light` to the `body` rule directly.
+
+### From previous sessions — MongoDB
+- `mongod` was running with `--auth --bind_ip_all` (started manually, not via systemctl)
+- `--bind_ip_all` disables the MongoDB localhost exception, so `createUser` without credentials fails
+- TLS mismatch: `database.py` had `tls=True` hardcoded; local mongod doesn't speak TLS → fixed by making TLS conditional on `mongodb+srv://` URI prefix
+- Fixed by killing the process and restarting via `sudo systemctl start mongod`
 
 ### From earlier sessions
 - **Next.js API routes as backend** — rejected. Scheduling logic and future ML are naturally Python; Google Calendar SDK has better Python support; FastAPI is Theo's comfort zone.
-- **Local MongoDB** — started with `brew install mongodb-community`, switched to Atlas. No data loss. Atlas needs no local service management.
+- **Local MongoDB → Atlas** — started with local, switched to Atlas. No data loss. Atlas needs no local service management. (Moved back to local for dev; Atlas still usable for prod with the same `database.py`.)
 - **Putting `compute_free_blocks` in `calendar_service.py`** — rejected. `calendar_service.py` is IO only; computation in its own file keeps both independently testable.
 - **`cursor = e` instead of `cursor = max(cursor, e)`** in `compute_free_blocks` — the `max` version guards against a bug in the merge step causing a backwards cursor.
-- **Five bugs in `get_free_blocks.py`** — all fixed:
-  1. `from zoneinfor import ZoneInfo` → `from zoneinfo import ZoneInfo` (typo)
-  2. `clipped_start = max(s, window_end)` → `max(s, window_start)` (swapped)
-  3. `clipped_end = min(e, window_start)` → `min(e, window_end)` (swapped)
-  4. `cusor` → `cursor` (typo)
-  5. `"duration_min"; duration` → `"duration_min": duration` (semicolon not colon)
-- **Conflicting pymongo entries in `requirements.txt`** — had both `pymongo[srv]==3.12` and `pymongo==4.17.0`. Consolidated to `pymongo[srv]==4.17.0`. Also removed `annotated-doc==0.0.4` (spurious; real package `annotated-types` was already listed).
-- **`test_calendar_service.py` imports `pymock`** — not a real package. Tests were never finished. Left alone.
-- **venv was missing despite being listed as done** — recreated with `python3 -m venv venv && venv/bin/pip install -r requirements.txt`. Always use `venv/bin/python` / `venv/bin/uvicorn`, not system Python.
-- **SWR/React Query for data fetching** — considered, but unnecessary in Next.js 16. Server Components fetch directly; Server Actions + `revalidatePath` handle post-mutation refresh. Zero client-side data fetching libraries needed.
+- **Five bugs in `get_free_blocks.py`** — all fixed (typos, swapped window_start/window_end, semicolon vs colon in dict literal).
+- **Conflicting pymongo entries in `requirements.txt`** — consolidated to `pymongo[srv]==4.17.0`.
+- **SWR/React Query for data fetching** — considered, unnecessary. Server Components + Server Actions + `revalidatePath` handle everything.
 
 ---
 
 ## Next Immediate Steps
 
-### 1. Fix form input colors (quick)
-In `frontend/app/components/AddTaskForm.tsx`, each `<input>` needs `bg-white` added to its `className`. Currently inputs inherit the `bg-zinc-50` of their container through transparency, making the borders look faint and the fields blend together. The fix is a one-liner per input:
-
-```tsx
-className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-```
+### 1. Confirm the dark mode fix
+Refresh `http://localhost:3001`. If the title and placeholder text are still invisible:
+- Try moving `color-scheme: light` from `:root` to `body` in `globals.css`
+- Or add it to the `html` element via `layout.tsx`: `<html ... style={{ colorScheme: 'light' }}>`
+- Last resort: add explicit `text-zinc-900` color to the `body` rule and `placeholder-zinc-500` to every input
 
 ### 2. Write scheduled tasks back to Google Calendar
-
 Create `backend/services/calendar_write.py`:
-
 ```python
 from googleapiclient.discovery import build
 
@@ -124,15 +145,12 @@ def create_gcal_event(creds, title: str, start_iso: str, end_iso: str) -> str:
         "end": {"dateTime": end_iso},
     }
     result = service.events().insert(calendarId="primary", body=event).execute()
-    return result["id"]  # store this so we can delete/update the event later
+    return result["id"]
 ```
+Then in `backend/routers/schedule.py`, after the MongoDB write-back loop, call `create_gcal_event` for each assigned task and store `gcal_event_id` on the task document.
 
-Then in `backend/routers/schedule.py`, after the MongoDB write-back loop, call `create_gcal_event` for each assigned task and store the returned `gcal_event_id` on the task document. You'll need to fetch the task title from MongoDB (you already have the task objects in `pending_tasks`).
-
-The `gcal_event_id` should be stored on the task in MongoDB so that if a task is deleted or re-scheduled, the event can be removed from GCal too (future work, but set up the field now).
-
-### 3. Surface unschedulable tasks (after GCal write-back)
-`assign_tasks` currently silently skips tasks that don't fit any free block. The fix: return a second value — a list of task IDs that couldn't be scheduled. In `schedule.py`, after the assignment loop, update those tasks with `status: "unschedulable"` and surface them in the UI with a warning.
+### 3. Surface unschedulable tasks
+`assign_tasks` currently silently skips tasks that don't fit any free block. Fix: return a second value — a list of unfit task IDs. In `schedule.py`, update those tasks with `status: "unschedulable"` and surface them in the UI with a warning banner.
 
 ---
 

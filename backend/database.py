@@ -6,10 +6,13 @@ import os
 
 load_dotenv()
 
+_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+_use_tls = _uri.startswith("mongodb+srv://")
+
 client = MongoClient(
-    os.getenv("MONGODB_URI"),
-    tls=True,
-    tlsCAFile=certifi.where(),
+    _uri,
+    tls=_use_tls,
+    tlsCAFile=certifi.where() if _use_tls else None,
 )
 db = client["breadcrumbs"]
 
