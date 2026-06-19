@@ -52,12 +52,14 @@ export function TaskCard({ task }: { task: Task }) {
         </div>
 
         <div className="flex gap-2 shrink-0">
-          <button
-            onClick={() => setCompleting((v) => !v)}
-            className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-lg hover:bg-green-200 transition-colors"
-          >
-            Complete
-          </button>
+          {task.status !== "unschedulable" && (
+            <button
+              onClick={() => setCompleting((v) => !v)}
+              className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-lg hover:bg-green-200 transition-colors"
+            >
+              Complete
+            </button>
+          )}
           <form action={deleteTaskAction}>
             <input type="hidden" name="id" value={task.id} />
             <button

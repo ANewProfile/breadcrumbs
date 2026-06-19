@@ -6,7 +6,7 @@ export type Task = {
   subject: string;
   estimated_minutes: number;
   actual_minutes: number[];
-  status: "pending" | "scheduled" | "done";
+  status: "pending" | "scheduled" | "done" | "unschedulable";
   scheduled_blocks: { start: string; end: string }[];
   created_at: string;
 };

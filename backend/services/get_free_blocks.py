@@ -22,13 +22,17 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
     date_min = min(all_dates)
     date_max = max(all_dates)
 
+    now = datetime.now(tz)
     free_blocks = []
     current_date = date_min
 
     while current_date <= date_max:
-        window_start = datetime(current_date.year, current_date.month, current_date.day,
-                                int(day_start.split(":")[0]), int(day_start.split(":")[1]),
-                                tzinfo=tz)
+        window_start = max(
+            datetime(current_date.year, current_date.month, current_date.day,
+                     int(day_start.split(":")[0]), int(day_start.split(":")[1]),
+                     tzinfo=tz),
+            now,
+        )
         window_end = datetime(current_date.year, current_date.month, current_date.day,
                               int(day_end.split(":")[0]), int(day_end.split(":")[1]),
                               tzinfo=tz)

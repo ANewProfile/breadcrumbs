@@ -1,3 +1,3 @@
 def serialize(doc: dict) -> dict:
-    doc["_id"] = str(doc["_id"])
+    doc["id"] = str(doc.pop("_id"))
     return doc
