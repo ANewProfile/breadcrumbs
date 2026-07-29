@@ -134,10 +134,13 @@ Fix: `serialize()` now does `doc["id"] = str(doc.pop("_id"))`. All downstream ca
 
 ## Next Immediate Steps
 
-### 1. Confirm dark mode fix
+### 1. Update MongoDB credentials for new computer
+This session is running on a new machine — `backend/.env` and/or local `mongod` setup likely need to be reconfigured to match this computer's MongoDB install (local dev credentials, URI, or Atlas connection string may differ from the previous machine). Verify `MONGODB_URI` in `backend/.env` and confirm `mongod` is running and reachable before testing anything else.
+
+### 2. Confirm dark mode fix
 Open `http://localhost:3001`. Check that the "Breadcrumbs" title is readable and input placeholder text is visible. If not, change `globals.css` to put `color-scheme: light` on `body` instead of `:root`.
 
-### 2. Delete GCal event on task deletion / completion
+### 3. Delete GCal event on task deletion / completion
 The `gcal_event_id` field is now stored on each scheduled task in MongoDB. When a task is deleted or completed:
 - In `routers/tasks.py`, before `delete_one`, call a new `delete_gcal_event(creds, gcal_event_id)` from `services/calendar_write.py`
 - Same for `complete_task` — on completion, the GCal event should be removed (task is done)
@@ -150,7 +153,7 @@ def delete_gcal_event(creds, event_id: str) -> None:
     service.events().delete(calendarId="primary", eventId=event_id).execute()
 ```
 
-### 3. Fix "no events = no free blocks"
+### 4. Fix "no events = no free blocks"
 `compute_free_blocks` returns `[]` immediately if GCal has no events. Instead, fall back to scheduling across a fixed window (e.g., today + 7 days) using `day_start`/`day_end`. The simplest fix:
 
 ```python
@@ -162,7 +165,7 @@ if not busy:
     # then run the normal per-day loop with no busy intervals
 ```
 
-### 4. Allow re-scheduling unschedulable tasks
+### 5. Allow re-scheduling unschedulable tasks
 Currently the scheduler only queries `status: "pending"`. Change the query to include `"unschedulable"` so those tasks get another shot when the user re-runs the scheduler (e.g. after a day passes and new free blocks open up). Change in `schedule.py`:
 ```python
 tasks_collection.find({"status": {"$in": ["pending", "unschedulable"]}})
