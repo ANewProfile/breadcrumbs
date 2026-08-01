@@ -11,6 +11,19 @@ function formatTime(iso: string) {
   });
 }
 
+function formatDueDate(dueDate: string) {
+  const due = new Date(`${dueDate}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+
+  const label = due.toLocaleDateString([], { month: "short", day: "numeric" });
+  if (days < 0) return { text: `Overdue (${label})`, urgent: true };
+  if (days === 0) return { text: "Due today", urgent: true };
+  if (days === 1) return { text: "Due tomorrow", urgent: true };
+  return { text: `Due ${label}`, urgent: false };
+}
+
 const SUBJECT_COLORS: Record<string, string> = {
   math: "bg-purple-100 text-purple-800",
   cs: "bg-blue-100 text-blue-800",
@@ -24,6 +37,12 @@ function subjectColor(subject: string) {
     SUBJECT_COLORS[subject.toLowerCase()] ?? "bg-zinc-100 text-zinc-700"
   );
 }
+
+const PRIORITY_COLORS: Record<string, string> = {
+  high: "bg-red-100 text-red-700",
+  medium: "bg-zinc-100 text-zinc-600",
+  low: "bg-zinc-50 text-zinc-400",
+};
 
 export function TaskCard({ task }: { task: Task }) {
   const [completing, setCompleting] = useState(false);
@@ -43,12 +62,41 @@ export function TaskCard({ task }: { task: Task }) {
             <span className="text-xs text-zinc-500">
               ~{task.estimated_minutes} min
             </span>
+            {task.priority !== "medium" && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}
+              >
+                {task.priority}
+              </span>
+            )}
+            {task.due_date && (
+              <span
+                className={`text-xs font-medium ${
+                  formatDueDate(task.due_date).urgent
+                    ? "text-red-600"
+                    : "text-zinc-500"
+                }`}
+              >
+                {formatDueDate(task.due_date).text}
+              </span>
+            )}
             {block && (
               <span className="text-xs text-blue-600 font-medium">
                 {formatTime(block.start)} – {formatTime(block.end)}
               </span>
             )}
           </div>
+
+          {task.estimate_basis === "historical" &&
+            task.estimated_minutes_used !== undefined && (
+              <p className="text-xs text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1 mt-1.5 inline-block">
+                Scheduled {task.estimated_minutes_used} min based on your last{" "}
+                {task.estimate_sample_size} {task.subject} session
+                {task.estimate_sample_size === 1 ? "" : "s"}
+                {task.estimated_minutes_used !== task.estimated_minutes &&
+                  ` — you estimated ${task.estimated_minutes}`}
+              </p>
+            )}
         </div>
 
         <div className="flex gap-2 shrink-0">

@@ -1,5 +1,7 @@
 const BASE = process.env.API_URL ?? "http://localhost:8000";
 
+export type Priority = "low" | "medium" | "high";
+
 export type Task = {
   id: string;
   title: string;
@@ -9,6 +11,11 @@ export type Task = {
   status: "pending" | "scheduled" | "done" | "unschedulable";
   scheduled_blocks: { start: string; end: string }[];
   created_at: string;
+  due_date: string | null;
+  priority: Priority;
+  estimated_minutes_used?: number;
+  estimate_basis?: "user" | "historical";
+  estimate_sample_size?: number;
 };
 
 export async function fetchTasks(): Promise<Task[]> {
@@ -21,6 +28,8 @@ export async function createTask(data: {
   title: string;
   subject: string;
   estimated_minutes: number;
+  due_date?: string | null;
+  priority?: Priority;
 }): Promise<Task> {
   const res = await fetch(`${BASE}/tasks`, {
     method: "POST",
@@ -54,6 +63,43 @@ export async function runScheduler(): Promise<unknown> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { detail?: string }).detail ?? "Scheduler failed");
+  }
+  return res.json();
+}
+
+export type Settings = {
+  day_start: string;
+  day_end: string;
+  timezone: string;
+  max_continuous_minutes: number;
+  max_subjects_per_day: number;
+  lookahead_days: number;
+};
+
+export async function fetchSettings(): Promise<Settings> {
+  const res = await fetch(`${BASE}/settings`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch settings");
+  return res.json();
+}
+
+export async function updateSettings(
+  data: Partial<Settings>
+): Promise<Settings> {
+  const res = await fetch(`${BASE}/settings`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = (body as { detail?: unknown }).detail;
+    let message = "Failed to update settings";
+    if (typeof detail === "string") {
+      message = detail;
+    } else if (Array.isArray(detail) && detail[0]?.msg) {
+      message = detail[0].msg;
+    }
+    throw new Error(message);
   }
   return res.json();
 }

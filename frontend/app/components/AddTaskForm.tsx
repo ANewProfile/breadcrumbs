@@ -34,6 +34,28 @@ export function AddTaskForm() {
         />
         <span className="text-sm text-zinc-500">minutes</span>
       </div>
+      <div className="flex items-center gap-3">
+        <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          Due date (optional)
+          <input
+            name="due_date"
+            type="date"
+            className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          Priority
+          <select
+            name="priority"
+            defaultValue="medium"
+            className="bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+      </div>
       <button
         type="submit"
         className="self-start bg-zinc-900 text-white text-sm px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors"

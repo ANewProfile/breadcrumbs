@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "22:00", tz_str: str = "America/New_York") -> list:
+def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "22:00", tz_str: str = "America/New_York", lookahead_days: int = 7) -> list:
     tz = ZoneInfo(tz_str)
 
     busy = []
@@ -15,14 +15,18 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
         end = datetime.fromisoformat(end_raw["dateTime"]).astimezone(tz)
         busy.append((start, end))
 
-    if not busy:
-        return []
-
-    all_dates = [s.date() for s, _ in busy] + [e.date() for _, e in busy]
-    date_min = min(all_dates)
-    date_max = max(all_dates)
-
     now = datetime.now(tz)
+
+    # The scheduling window always spans "now" through now + lookahead_days,
+    # independent of whether any events exist in that range (get_events fetches
+    # this same fixed window regardless of event count, so a sparse or empty
+    # calendar should still yield free blocks across the full window).
+    date_min = now.date()
+    date_max = now.date() + timedelta(days=lookahead_days)
+    if busy:
+        event_dates = [s.date() for s, _ in busy] + [e.date() for _, e in busy]
+        date_max = max(date_max, max(event_dates))
+
     free_blocks = []
     current_date = date_min
 
