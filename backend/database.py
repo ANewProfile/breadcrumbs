@@ -19,3 +19,5 @@ db = client["breadcrumbs"]
 # create collections
 tasks_collection = db["tasks"]
 settings_collection = db["settings"]
+users_collection = db["users"]
+sessions_collection = db["sessions"]

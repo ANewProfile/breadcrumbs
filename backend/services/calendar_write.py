@@ -20,3 +20,15 @@ def delete_gcal_event(creds, event_id: str) -> None:
     except HttpError as e:
         if e.resp.status not in (404, 410):
             raise
+
+
+def update_gcal_event(creds, event_id: str, start_iso: str, end_iso: str) -> None:
+    service = build("calendar", "v3", credentials=creds)
+    service.events().patch(
+        calendarId="primary",
+        eventId=event_id,
+        body={
+            "start": {"dateTime": start_iso},
+            "end": {"dateTime": end_iso},
+        },
+    ).execute()
