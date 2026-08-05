@@ -7,3 +7,7 @@ backend/services/__pycache__/
 backend/tests/__pycache__/
 backend/token.json
 legal/
+backend/.pytest_cache/
+.DS_Store
+backend/.DS_Store
+frontend/.DS_Store
