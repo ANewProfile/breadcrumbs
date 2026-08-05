@@ -1,2 +1,9 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-*
+backend/.env
+backend/__pycache__/
+backend/auth/__pycache__/
+backend/credentials.json
+backend/routers/__pycache__/
+backend/services/__pycache__/
+backend/tests/__pycache__/
+backend/token.json
+legal/
