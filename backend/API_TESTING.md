@@ -6,7 +6,7 @@ Start the server first:
 cd backend && uvicorn main:app --reload
 ```
 
-NOTE: Run the following stpes in order
+NOTE: Run the following steps in order
 
 ---
 
