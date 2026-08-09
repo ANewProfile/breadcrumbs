@@ -6,7 +6,7 @@ Start the server first:
 cd backend && uvicorn main:app --reload
 ```
 
-Run these in order — each builds on the previous.
+NOTE: Run the following stpes in order
 
 ---
 
@@ -17,7 +17,7 @@ curl -s -X POST http://localhost:8000/tasks \
   -d '{"title": "Finish pset 3", "subject": "Math", "estimated_minutes": 90}' | python3 -m json.tool
 ```
 Expect: `201` with the full task doc including `_id`, `status: "pending"`, `actual_minutes: []`.
-Copy the `_id` value — you'll need it for the next steps. Call it `TASK_ID`.
+Copy the `_id` value, it will be needed. Call it `TASK_ID`.
 
 ---
 
@@ -94,7 +94,7 @@ curl -s -X POST http://localhost:8000/tasks \
 # Then run the scheduler
 curl -s -X POST http://localhost:8000/schedule/run | python3 -m json.tool
 ```
-Expect: `{"free_blocks": [...], "assignments": {}}` — `free_blocks` populated from your real calendar, `assignments` empty because it's still a stub.
+Expect: `{"free_blocks": [...], "assignments": {}}` — `free_blocks` populated from your real calendar. `assignments` should be empty because it's still a stub.
 
 ---
 
