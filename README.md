@@ -22,11 +22,11 @@ The scheduling algorithm optimizes for three things:
 
 ## Features (MVP)
 
-- [ ] Google Calendar integration — read free/busy time
-- [ ] Manual task entry with subject tagging and user time estimate
-- [ ] Smart scheduling algorithm (free time + subject grouping + time prediction)
-- [ ] Historical task time tracking for improved estimates
-- [ ] Task dashboard — view scheduled tasks and upcoming deadlines
+- [x] Google Calendar integration — read free/busy time
+- [x] Manual task entry with subject tagging and user time estimate
+- [x] Smart scheduling algorithm (free time + subject grouping + time prediction)
+- [x] Historical task time tracking for improved estimates
+- [x] Task dashboard — view scheduled tasks and upcoming deadlines
 
 ## Roadmap
 
