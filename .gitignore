@@ -11,3 +11,4 @@ backend/.pytest_cache/
 .DS_Store
 backend/.DS_Store
 frontend/.DS_Store
+handoff.md
