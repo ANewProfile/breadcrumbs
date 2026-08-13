@@ -10,5 +10,7 @@ legal/
 backend/.pytest_cache/
 .DS_Store
 backend/.DS_Store
+frontend/AGENTS.md
+frontend/CLAUDE.md
 frontend/.DS_Store
 handoff.md

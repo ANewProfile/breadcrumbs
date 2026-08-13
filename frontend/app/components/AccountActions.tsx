@@ -61,6 +61,7 @@ function ConfirmAction({
         {!confirming && (
           <button
             type="button"
+            aria-expanded={false}
             onClick={() => {
               setConfirming(true);
               setError(null);
@@ -117,8 +118,8 @@ function ConfirmAction({
         </div>
       )}
 
-      {done && <p className="mt-2 text-sm text-green-600 dark:text-green-400">Done.</p>}
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {done && <p role="status" className="mt-2 text-sm text-green-600 dark:text-green-400">Done.</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

@@ -27,15 +27,15 @@ def test_delete_data_route_cleans_up_and_wipes_tasks(mock_cleanup, mock_delete_a
 
 
 @patch("routers.account.delete_account")
-@patch("routers.account.disconnect_google")
+@patch("routers.account.revoke_google_grant")
 @patch("routers.account.cleanup_future_gcal_events")
 def test_delete_account_route_wipes_everything_and_clears_cookie(
-    mock_cleanup, mock_disconnect, mock_delete_account
+    mock_cleanup, mock_revoke, mock_delete_account
 ):
     response = delete_account_route(USER)
 
     mock_cleanup.assert_called_once()
-    mock_disconnect.assert_called_once()
+    mock_revoke.assert_called_once()
     mock_delete_account.assert_called_once()
     assert mock_delete_account.call_args[0][4] == USER["_id"]
     set_cookie_headers = response.headers.getlist("set-cookie")

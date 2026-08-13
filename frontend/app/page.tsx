@@ -2,6 +2,7 @@ import { fetchTasks, fetchSettings, fetchCurrentUser, BASE, type Task } from "@/
 import { AddTaskForm } from "./components/AddTaskForm";
 import { RunSchedulerBtn } from "./components/RunSchedulerBtn";
 import { TaskCard } from "./components/TaskCard";
+import { Landing } from "./components/Landing";
 
 function dayLabel(dateStr: string): string {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -41,24 +42,7 @@ export default async function Home() {
   const user = await fetchCurrentUser();
 
   if (!user) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <div className="flex flex-col items-center text-center mt-12 sm:mt-20 px-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            Your tasks
-          </h1>
-          <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm">
-            Sign in with Google to connect your calendar and start scheduling.
-          </p>
-          <a
-            href={`${BASE}/auth/google/login`}
-            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-lg transition-colors"
-          >
-            Sign in with Google
-          </a>
-        </div>
-      </main>
-    );
+    return <Landing googleLoginUrl={`${BASE}/auth/google/login`} />;
   }
 
   const [tasks, settings] = await Promise.all([fetchTasks(), fetchSettings()]);
@@ -69,7 +53,7 @@ export default async function Home() {
   const scheduledByDay = groupScheduledByDay(scheduled);
 
   return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
           Your tasks
@@ -90,7 +74,7 @@ export default async function Home() {
           <div className="space-y-5">
             {scheduledByDay.map((day) => (
               <div key={day.date}>
-                <h3 className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide mb-2">
+                <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
                   {day.label}
                 </h3>
                 <ul className="space-y-2">
@@ -153,7 +137,7 @@ export default async function Home() {
           <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">
             No tasks yet
           </p>
-          <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             Add one above to get started.
           </p>
         </div>

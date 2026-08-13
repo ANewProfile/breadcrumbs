@@ -33,13 +33,22 @@ def cleanup_future_gcal_events(tasks_collection, users_collection, user: dict) -
             delete_gcal_event(creds, task["gcal_event_id"])
 
 
-def disconnect_google(users_collection, user: dict) -> None:
-    """Revokes the grant with Google and forgets the stored credentials locally."""
+def revoke_google_grant(users_collection, user: dict) -> None:
+    """
+    Tells Google to forget this grant. Does not touch the local user doc —
+    use this (instead of disconnect_google) when the user doc is about to be
+    deleted anyway, so we don't write a field we're seconds away from erasing.
+    """
     try:
         creds = get_credentials_for_user(user, users_collection)
         revoke_credentials(creds)
     except ValueError:
         pass  # already disconnected / nothing to revoke
+
+
+def disconnect_google(users_collection, user: dict) -> None:
+    """Revokes the grant with Google and forgets the stored credentials locally."""
+    revoke_google_grant(users_collection, user)
     users_collection.update_one({"_id": user["_id"]}, {"$unset": {"google_credentials": ""}})
 
 

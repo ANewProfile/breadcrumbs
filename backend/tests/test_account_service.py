@@ -4,6 +4,7 @@ from bson import ObjectId
 from services.account_service import (
     cleanup_future_gcal_events,
     disconnect_google,
+    revoke_google_grant,
     delete_all_task_data,
     delete_account,
 )
@@ -80,6 +81,32 @@ def test_disconnect_google_still_unsets_when_already_disconnected(mock_revoke, m
     mock_users.update_one.assert_called_once_with(
         {"_id": USER["_id"]}, {"$unset": {"google_credentials": ""}}
     )
+
+
+@patch("services.account_service.get_credentials_for_user")
+@patch("services.account_service.revoke_credentials")
+def test_revoke_google_grant_revokes_without_writing_to_user_doc(mock_revoke, mock_get_creds):
+    # Used right before the user doc is deleted (account deletion) — it must not
+    # write a field to a document that's about to be erased anyway.
+    mock_users = MagicMock()
+    mock_get_creds.return_value = "creds"
+
+    revoke_google_grant(mock_users, USER)
+
+    mock_revoke.assert_called_once_with("creds")
+    mock_users.update_one.assert_not_called()
+
+
+@patch("services.account_service.get_credentials_for_user")
+@patch("services.account_service.revoke_credentials")
+def test_revoke_google_grant_noop_when_already_disconnected(mock_revoke, mock_get_creds):
+    mock_users = MagicMock()
+    mock_get_creds.side_effect = ValueError("no creds")
+
+    revoke_google_grant(mock_users, USER)
+
+    mock_revoke.assert_not_called()
+    mock_users.update_one.assert_not_called()
 
 
 def test_delete_all_task_data_wipes_tasks_and_settings_only():

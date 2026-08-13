@@ -45,7 +45,7 @@ export function Header({ user }: { user: CurrentUser | null }) {
               >
                 Settings
               </Link>
-              <span className="hidden sm:inline text-sm text-zinc-400 dark:text-zinc-500 truncate max-w-[160px]">
+              <span className="hidden sm:inline text-sm text-zinc-500 dark:text-zinc-400 truncate max-w-[160px]">
                 {user.email}
               </span>
               <form action={logoutAction}>

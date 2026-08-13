@@ -14,20 +14,26 @@ export function AddTaskForm() {
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <input
-          name="title"
-          type="text"
-          required
-          placeholder="Task title"
-          className={inputClass}
-        />
-        <input
-          name="subject"
-          type="text"
-          required
-          placeholder="Subject (e.g. Math, CS, English)"
-          className={inputClass}
-        />
+        <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="sr-only">Task title</span>
+          <input
+            name="title"
+            type="text"
+            required
+            placeholder="Task title"
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="sr-only">Subject</span>
+          <input
+            name="subject"
+            type="text"
+            required
+            placeholder="Subject (e.g. Math, CS, English)"
+            className={inputClass}
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

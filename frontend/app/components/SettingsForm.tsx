@@ -136,11 +136,11 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           {pending ? "Saving…" : "Save settings"}
         </button>
         {saved && !pending && (
-          <span className="text-sm text-green-600 dark:text-green-400">Saved.</span>
+          <span role="status" className="text-sm text-green-600 dark:text-green-400">Saved.</span>
         )}
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </form>
   );
 }

@@ -60,7 +60,7 @@ function subjectColor(subject: string) {
 const PRIORITY_COLORS: Record<string, string> = {
   high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
   medium: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-  low: "bg-zinc-50 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500",
+  low: "bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400",
 };
 
 type TimerState = {
@@ -264,22 +264,28 @@ export function TaskCard({
           {task.status !== "unschedulable" && (
             <button
               onClick={() => setCompleting((v) => !v)}
+              aria-expanded={completing}
+              aria-controls={`complete-panel-${task.id}`}
               className="text-xs bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 px-3 py-1.5 rounded-lg hover:bg-green-200 dark:hover:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors"
             >
-              Complete
+              Complete<span className="sr-only"> {task.title}</span>
             </button>
           )}
           <button
             onClick={() => setMoving((v) => !v)}
+            aria-expanded={moving}
+            aria-controls={`move-panel-${task.id}`}
             className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
           >
-            Move
+            Move<span className="sr-only"> {task.title}</span>
           </button>
           <button
             onClick={() => setEditing((v) => !v)}
+            aria-expanded={editing}
+            aria-controls={`edit-panel-${task.id}`}
             className="text-xs bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 px-3 py-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition-colors"
           >
-            Edit
+            Edit<span className="sr-only"> {task.title}</span>
           </button>
           <form action={deleteTaskAction}>
             <input type="hidden" name="id" value={task.id} />
@@ -287,14 +293,14 @@ export function TaskCard({
               type="submit"
               className="text-xs bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 px-3 py-1.5 rounded-lg hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-950 dark:hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors"
             >
-              Delete
+              Delete<span className="sr-only"> {task.title}</span>
             </button>
           </form>
         </div>
       </div>
 
       {completing && (
-        <div className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+        <div id={`complete-panel-${task.id}`} className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
           {timeTrackingMode === "manual" ? (
             <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 rounded-lg px-2 py-1 mb-2 inline-block">
               ⏱ Don&apos;t forget to record how long this actually took — it
@@ -321,15 +327,18 @@ export function TaskCard({
 
           <form action={handleCompleteSubmit} className="flex items-center gap-2 flex-wrap">
             {timeTrackingMode === "manual" && (
-              <input
-                name="actual_minutes"
-                type="number"
-                required
-                min="1"
-                placeholder="Actual minutes"
-                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-green-400"
-                autoFocus
-              />
+              <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Actual minutes spent on {task.title}</span>
+                <input
+                  name="actual_minutes"
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="Actual minutes"
+                  className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  autoFocus
+                />
+              </label>
             )}
             <button
               type="submit"
@@ -369,22 +378,25 @@ export function TaskCard({
             </button>
           </form>
           {completeError && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{completeError}</p>
+            <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{completeError}</p>
           )}
         </div>
       )}
 
       {moving && (
-        <div className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+        <div id={`move-panel-${task.id}`} className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
           <form action={handleMoveSubmit} className="flex items-center gap-2 flex-wrap">
-            <input
-              name="start"
-              type="datetime-local"
-              required
-              defaultValue={block ? toDatetimeLocalValue(block.start) : undefined}
-              className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              autoFocus
-            />
+            <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="sr-only">New start time for {task.title}</span>
+              <input
+                name="start"
+                type="datetime-local"
+                required
+                defaultValue={block ? toDatetimeLocalValue(block.start) : undefined}
+                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                autoFocus
+              />
+            </label>
             <button
               type="submit"
               disabled={movePending}
@@ -403,56 +415,71 @@ export function TaskCard({
               Cancel
             </button>
           </form>
-          {moveError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{moveError}</p>}
+          {moveError && <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{moveError}</p>}
         </div>
       )}
 
       {editing && (
-        <div className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+        <div id={`edit-panel-${task.id}`} className="mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
           <form action={handleEditSubmit} className="flex flex-col gap-2">
             <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                name="title"
-                type="text"
-                required
-                defaultValue={task.title}
-                placeholder="Task title"
-                className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              />
-              <input
-                name="subject"
-                type="text"
-                required
-                defaultValue={task.subject}
-                placeholder="Subject"
-                className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              />
+              <label className="flex-1 flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Task title</span>
+                <input
+                  name="title"
+                  type="text"
+                  required
+                  defaultValue={task.title}
+                  placeholder="Task title"
+                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                />
+              </label>
+              <label className="flex-1 flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Subject</span>
+                <input
+                  name="subject"
+                  type="text"
+                  required
+                  defaultValue={task.subject}
+                  placeholder="Subject"
+                  className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                />
+              </label>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
-              <input
-                name="estimated_minutes"
-                type="number"
-                required
-                min="1"
-                defaultValue={task.estimated_minutes}
-                className="w-28 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              />
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">min</span>
-              <input
-                name="due_date"
-                type="date"
-                defaultValue={task.due_date ?? ""}
-                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              />
-              <select
-                name="priority"
-                defaultValue={task.priority}
-                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+              <label className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Estimated minutes</span>
+                <input
+                  name="estimated_minutes"
+                  type="number"
+                  required
+                  min="1"
+                  defaultValue={task.estimated_minutes}
+                  className="w-28 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                />
+                <span className="text-sm text-zinc-500 dark:text-zinc-400" aria-hidden="true">min</span>
+              </label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Due date</span>
+                <input
+                  name="due_date"
+                  type="date"
+                  defaultValue={task.due_date ?? ""}
+                  className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                />
+              </label>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="sr-only">Priority</span>
+                <select
+                  name="priority"
+                  defaultValue={task.priority}
+                  className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -474,7 +501,7 @@ export function TaskCard({
               </button>
             </div>
           </form>
-          {editError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{editError}</p>}
+          {editError && <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{editError}</p>}
         </div>
       )}
     </li>
