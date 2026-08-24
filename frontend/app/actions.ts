@@ -15,10 +15,17 @@ import {
   disconnectGoogle,
   deleteAccountData,
   deleteAccount,
+  updateSchoolSchedule,
+  generateSchoolScheduleEvents,
+  deleteFutureSchoolEvents,
+  addSnowDay,
   SESSION_COOKIE_NAME,
   type Priority,
   type Settings,
   type TimeTrackingMode,
+  type SchoolSchedule,
+  type DayNumber,
+  type EarlyDismissal,
 } from "@/lib/api";
 
 export async function createTaskAction(formData: FormData) {
@@ -151,6 +158,61 @@ export async function deleteAccountDataAction(): Promise<{ error?: string }> {
     revalidatePath("/");
     revalidatePath("/settings");
     return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function updateSchoolScheduleAction(
+  data: Partial<SchoolSchedule>
+): Promise<{ error?: string }> {
+  try {
+    await updateSchoolSchedule(data);
+    revalidatePath("/scheduleinsert");
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function generateSchoolScheduleAction(data: {
+  start_date: string;
+  end_date: string;
+  start_day_number: DayNumber;
+  off_dates: string[];
+  early_dismissals: EarlyDismissal[];
+}): Promise<{ error?: string; created_count?: number }> {
+  try {
+    const result = await generateSchoolScheduleEvents(data);
+    revalidatePath("/");
+    return { created_count: result.created_count };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function deleteFutureSchoolEventsAction(): Promise<{
+  error?: string;
+  message?: string;
+}> {
+  try {
+    const result = await deleteFutureSchoolEvents();
+    revalidatePath("/");
+    return {
+      message: `Deleted ${result.deleted_count} event${result.deleted_count === 1 ? "" : "s"}.`,
+    };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function addSnowDayAction(date: string): Promise<{ error?: string; message?: string }> {
+  try {
+    const result = await addSnowDay(date);
+    revalidatePath("/");
+    return {
+      message: `Removed ${result.removed_date} and shifted ${result.created_count} event${result.created_count === 1 ? "" : "s"} back a day.`,
+    };
   } catch (e) {
     return { error: (e as Error).message };
   }
