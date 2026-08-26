@@ -16,6 +16,7 @@ router = APIRouter()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
 STATE_COOKIE_NAME = "breadcrumbs_oauth_state"
 VERIFIER_COOKIE_NAME = "breadcrumbs_oauth_verifier"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days, matches user_service.SESSION_TTL_DAYS
@@ -32,6 +33,7 @@ def google_login():
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="lax",
+        domain=COOKIE_DOMAIN,
         max_age=600,
     )
     response.set_cookie(
@@ -40,6 +42,7 @@ def google_login():
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="lax",
+        domain=COOKIE_DOMAIN,
         max_age=600,
     )
     return response
@@ -69,14 +72,15 @@ def google_callback(request: Request, code: str, state: str):
     token = create_session(sessions_collection, user["_id"])
 
     response = RedirectResponse(FRONTEND_URL)
-    response.delete_cookie(STATE_COOKIE_NAME)
-    response.delete_cookie(VERIFIER_COOKIE_NAME)
+    response.delete_cookie(STATE_COOKIE_NAME, domain=COOKIE_DOMAIN)
+    response.delete_cookie(VERIFIER_COOKIE_NAME, domain=COOKIE_DOMAIN)
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="lax",
+        domain=COOKIE_DOMAIN,
         max_age=SESSION_MAX_AGE,
     )
     return response
@@ -87,7 +91,7 @@ def logout(request: Request):
     token = request.cookies.get(SESSION_COOKIE_NAME)
     delete_session(sessions_collection, token)
     response = JSONResponse({"ok": True})
-    response.delete_cookie(SESSION_COOKIE_NAME)
+    response.delete_cookie(SESSION_COOKIE_NAME, domain=COOKIE_DOMAIN)
     return response
 
 
