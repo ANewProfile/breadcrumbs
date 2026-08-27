@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['breadcrumbs.kugelboshisthe.world'],
+  allowedDevOrigins: ['usebreadcrumbs.app'],
 };
 
 export default nextConfig;

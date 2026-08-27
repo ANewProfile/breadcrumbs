@@ -7,7 +7,7 @@ import {
   deleteAccountAction,
 } from "@/app/actions";
 
-function ConfirmAction({
+export function ConfirmAction({
   title,
   description,
   confirmLabel,
@@ -20,7 +20,7 @@ function ConfirmAction({
   description: string;
   confirmLabel: string;
   confirmingLabel: string;
-  action: () => Promise<{ error?: string }>;
+  action: () => Promise<{ error?: string; message?: string }>;
   tone?: "neutral" | "danger";
   /** When set, adds a third confirmation step: the exact phrase must be typed
    * before the final button becomes clickable. Reserved for the most severe
@@ -31,7 +31,7 @@ function ConfirmAction({
   const [typedText, setTypedText] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   const typedMatches =
     !typedConfirmationPhrase ||
@@ -44,7 +44,7 @@ function ConfirmAction({
       if (result.error) {
         setError(result.error);
       } else {
-        setDone(true);
+        setDoneMessage(result.message ?? "Done.");
         setConfirming(false);
         setTypedText("");
       }
@@ -65,7 +65,7 @@ function ConfirmAction({
             onClick={() => {
               setConfirming(true);
               setError(null);
-              setDone(false);
+              setDoneMessage(null);
               setTypedText("");
             }}
             className={`text-sm px-3 py-1.5 rounded-lg transition-colors shrink-0 ${
@@ -118,7 +118,11 @@ function ConfirmAction({
         </div>
       )}
 
-      {done && <p role="status" className="mt-2 text-sm text-green-600 dark:text-green-400">Done.</p>}
+      {doneMessage && (
+        <p role="status" className="mt-2 text-sm text-green-600 dark:text-green-400">
+          {doneMessage}
+        </p>
+      )}
       {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
