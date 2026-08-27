@@ -7,6 +7,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from database import school_schedule_collection, settings_collection, users_collection
 from auth.session import get_current_user
 from auth.google_auth import get_credentials_for_user
+from rate_limit import rate_limit
 from services.calendar_write import create_school_gcal_events_bulk, delete_gcal_events_bulk
 from services.calendar_service import search_events
 from services.settings_service import get_settings
@@ -133,7 +134,7 @@ def patch_school_schedule(body: ScheduleConfigUpdate, user: dict = Depends(get_c
     return update_school_schedule(school_schedule_collection, user["_id"], updates)
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[Depends(rate_limit("10/minute"))])
 def generate_school_schedule(body: GenerateIn, user: dict = Depends(get_current_user)):
     schedule = get_school_schedule(school_schedule_collection, user["_id"])
     settings = get_settings(settings_collection, user["_id"])
@@ -175,7 +176,7 @@ def generate_school_schedule(body: GenerateIn, user: dict = Depends(get_current_
     return {"created_count": len(created), "events": created}
 
 
-@router.post("/snow-day")
+@router.post("/snow-day", dependencies=[Depends(rate_limit("10/minute"))])
 def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
     """
     Removes a single school day (e.g. a snow closure) from an already-generated
@@ -275,7 +276,7 @@ def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
     return {"removed_date": snow_date.isoformat(), "deleted_count": len(future_events), "created_count": len(created), "events": created}
 
 
-@router.post("/delete-future-events")
+@router.post("/delete-future-events", dependencies=[Depends(rate_limit("10/minute"))])
 def delete_future_school_events(user: dict = Depends(get_current_user)):
     """
     Deletes every future calendar event this tool created — anything whose title

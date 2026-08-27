@@ -1,10 +1,13 @@
 # backend/main.py
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from rate_limit import default_rate_limit
 from routers import tasks, schedule, settings, auth, account, school_schedule
 
-app = FastAPI()
+# Applied to every route below, so no single session/IP can hammer the API or
+# database regardless of which endpoint they hit — see rate_limit.py.
+app = FastAPI(dependencies=[Depends(default_rate_limit)])
 
 app.add_middleware(
     CORSMiddleware,

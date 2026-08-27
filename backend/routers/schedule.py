@@ -10,11 +10,12 @@ from services.estimation import compute_subject_history, weighted_estimate
 from services.settings_service import get_settings
 from database import tasks_collection, settings_collection, users_collection
 from utils import serialize
+from rate_limit import rate_limit
 
 router = APIRouter()
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(rate_limit("15/minute"))])
 def run_schedule(user: dict = Depends(get_current_user)):
     settings = get_settings(settings_collection, user["_id"])
     try:

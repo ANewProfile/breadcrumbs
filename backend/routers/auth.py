@@ -9,6 +9,7 @@ from auth.google_auth import (
     credentials_to_dict,
 )
 from auth.session import get_current_user_optional, SESSION_COOKIE_NAME
+from rate_limit import rate_limit
 from services.user_service import upsert_user, store_google_credentials, create_session, delete_session
 from database import users_collection, sessions_collection
 
@@ -22,7 +23,7 @@ VERIFIER_COOKIE_NAME = "breadcrumbs_oauth_verifier"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days, matches user_service.SESSION_TTL_DAYS
 
 
-@router.get("/google/login")
+@router.get("/google/login", dependencies=[Depends(rate_limit("20/minute"))])
 def google_login():
     state = secrets.token_urlsafe(24)
     url, code_verifier = build_authorization_url(state)
@@ -48,7 +49,7 @@ def google_login():
     return response
 
 
-@router.get("/google/callback")
+@router.get("/google/callback", dependencies=[Depends(rate_limit("20/minute"))])
 def google_callback(request: Request, code: str, state: str):
     expected_state = request.cookies.get(STATE_COOKIE_NAME)
     if not expected_state or expected_state != state:
