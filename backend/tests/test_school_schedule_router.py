@@ -272,58 +272,67 @@ def make_rotation_schedule():
     }
 
 
-GENERATION = {
-    "start_date": "2024-09-03",
-    "end_date": "2024-09-12",
-    "start_day_number": "1",
-    "off_dates": [],
-    "early_dismissals": [],
-}
+def make_event(event_id: str, date_str: str, title: str, start_time: str = "08:00") -> dict:
+    """A minimal Google Calendar event resource for a school-schedule event, as
+    resolve_day_number_from_events / add_snow_day read it: only summary and
+    start.dateTime are inspected."""
+    return {
+        "id": event_id,
+        "summary": f"{title} [SCHOOL]",
+        "start": {"dateTime": f"{date_str}T{start_time}:00-04:00"},
+    }
 
 
-@patch("routers.school_schedule.get_last_generation")
-def test_snow_day_requires_prior_generation(mock_get_generation):
-    mock_get_generation.return_value = None
+@patch("routers.school_schedule.search_events")
+@patch("routers.school_schedule.get_credentials_for_user")
+@patch("routers.school_schedule.get_settings")
+@patch("routers.school_schedule.get_school_schedule")
+def test_snow_day_requires_school_events_on_that_date(mock_get_schedule, mock_get_settings, mock_creds, mock_search):
+    mock_get_schedule.return_value = make_rotation_schedule()
+    mock_get_settings.return_value = {"timezone": "America/New_York"}
+    mock_search.return_value = []
     with pytest.raises(HTTPException) as exc:
         add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
     assert exc.value.status_code == 400
 
 
-@patch("routers.school_schedule.get_last_generation")
-def test_snow_day_rejects_date_outside_generated_range(mock_get_generation):
-    mock_get_generation.return_value = GENERATION
+@patch("routers.school_schedule.search_events")
+@patch("routers.school_schedule.get_credentials_for_user")
+@patch("routers.school_schedule.get_settings")
+@patch("routers.school_schedule.get_school_schedule")
+def test_snow_day_rejects_date_with_no_events_even_if_other_dates_have_them(
+    mock_get_schedule, mock_get_settings, mock_creds, mock_search
+):
+    mock_get_schedule.return_value = make_rotation_schedule()
+    mock_get_settings.return_value = {"timezone": "America/New_York"}
+    mock_search.return_value = [make_event("evt-1", "2024-09-06", "D")]
     with pytest.raises(HTTPException) as exc:
-        add_snow_day(SnowDayIn(date=date(2024, 10, 1)), USER)
+        add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
     assert exc.value.status_code == 400
 
 
-@patch("routers.school_schedule.get_last_generation")
-def test_snow_day_rejects_weekend_date(mock_get_generation):
-    mock_get_generation.return_value = GENERATION
+def test_snow_day_rejects_weekend_date():
     with pytest.raises(HTTPException) as exc:
         add_snow_day(SnowDayIn(date=date(2024, 9, 7)), USER)  # Saturday
     assert exc.value.status_code == 400
 
 
-@patch("routers.school_schedule.get_last_generation")
-def test_snow_day_rejects_date_already_off(mock_get_generation):
-    mock_get_generation.return_value = {**GENERATION, "off_dates": ["2024-09-05"]}
+@patch("routers.school_schedule.search_events")
+@patch("routers.school_schedule.get_credentials_for_user")
+@patch("routers.school_schedule.get_settings")
+@patch("routers.school_schedule.get_school_schedule")
+def test_snow_day_rejects_when_calendar_doesnt_match_current_schedule(
+    mock_get_schedule, mock_get_settings, mock_creds, mock_search
+):
+    mock_get_schedule.return_value = make_rotation_schedule()
+    mock_get_settings.return_value = {"timezone": "America/New_York"}
+    # "Z" isn't any configured day's Period 1 course, so no rotation day matches.
+    mock_search.return_value = [make_event("evt-1", "2024-09-05", "Z")]
     with pytest.raises(HTTPException) as exc:
         add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
     assert exc.value.status_code == 400
 
 
-@patch("routers.school_schedule.get_last_generation")
-def test_snow_day_rejects_date_already_an_early_dismissal(mock_get_generation):
-    mock_get_generation.return_value = {
-        **GENERATION, "early_dismissals": [{"date": "2024-09-05", "period5_end": "12:30"}],
-    }
-    with pytest.raises(HTTPException) as exc:
-        add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
-    assert exc.value.status_code == 400
-
-
-@patch("routers.school_schedule.record_last_generation")
 @patch("routers.school_schedule.record_last_event_watermark")
 @patch("routers.school_schedule.create_school_gcal_events_bulk")
 @patch("routers.school_schedule.delete_gcal_events_bulk")
@@ -331,16 +340,25 @@ def test_snow_day_rejects_date_already_an_early_dismissal(mock_get_generation):
 @patch("routers.school_schedule.get_credentials_for_user")
 @patch("routers.school_schedule.get_settings")
 @patch("routers.school_schedule.get_school_schedule")
-@patch("routers.school_schedule.get_last_generation")
 def test_snow_day_shifts_rotation_without_skipping_the_missed_day_number(
-    mock_get_generation, mock_get_schedule, mock_get_settings, mock_creds,
-    mock_search, mock_delete_bulk, mock_create_bulk, mock_record_watermark, mock_record_generation,
+    mock_get_schedule, mock_get_settings, mock_creds,
+    mock_search, mock_delete_bulk, mock_create_bulk, mock_record_watermark,
 ):
-    # Tue 2024-09-03 = Day 1 ... Thu 2024-09-05 = Day 3 (the snow day).
-    mock_get_generation.return_value = GENERATION
+    # Tue 2024-09-03 = Day 1 ... Thu 2024-09-05 = Day 3 (the snow day). These are
+    # the events already sitting on the calendar (this tool's prior output),
+    # which the new implementation reads back instead of a stored /generate
+    # record — Sept 3-4 aren't included since a snow day only needs to look
+    # from the snow date forward.
     mock_get_schedule.return_value = make_rotation_schedule()
     mock_get_settings.return_value = {"timezone": "America/New_York"}
-    mock_search.return_value = [{"id": "old-1", "summary": "C [SCHOOL]"}]
+    mock_search.return_value = [
+        make_event("old-1", "2024-09-05", "C"),
+        make_event("old-2", "2024-09-06", "D"),
+        make_event("old-3", "2024-09-09", "E"),
+        make_event("old-4", "2024-09-10", "F"),
+        make_event("old-5", "2024-09-11", "A"),
+        make_event("old-6", "2024-09-12", "B"),
+    ]
     mock_create_bulk.side_effect = lambda creds, events: [f"evt-{i}" for i in range(len(events))]
 
     result = add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
@@ -355,8 +373,5 @@ def test_snow_day_shifts_rotation_without_skipping_the_missed_day_number(
     }
     assert "2024-09-05" not in period1_days
     assert result["removed_date"] == "2024-09-05"
-    assert result["deleted_count"] == 1
+    assert result["deleted_count"] == 6
     mock_delete_bulk.assert_called_once()
-
-    _, kwargs = mock_record_generation.call_args
-    assert kwargs["off_dates"] == ["2024-09-05"]

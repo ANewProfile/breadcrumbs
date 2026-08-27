@@ -17,10 +17,10 @@ from services.school_schedule_service import (
     get_last_event_watermark,
     record_last_event_watermark,
     clear_last_event_watermark,
-    get_last_generation,
     record_last_generation,
     clear_last_generation,
-    rotation_day_number_on,
+    resolve_day_number_from_events,
+    SCHOOL_EVENT_SUFFIX,
 )
 
 router = APIRouter()
@@ -29,7 +29,6 @@ TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 BlockLetter = Literal["A", "B", "C", "D", "E", "F", "G", "T"]
 DayNumber = Literal["1", "2", "3", "4", "5", "6"]
 MAX_GENERATE_DAYS = 366
-SCHOOL_EVENT_SUFFIX = " [SCHOOL]"
 
 
 class BellTime(BaseModel):
@@ -184,28 +183,24 @@ def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
     day — Day 2 becomes whatever Day 3 would've been, etc. — rather than
     skipping the rotation number that date would've had.
 
-    Relies on the params of the most recent /generate call (persisted there)
-    to know what range to re-shift and what day number the snow day itself
-    would've been assigned.
+    Reads everything it needs straight from Google Calendar (the actual source
+    of truth) instead of a remembered /generate call: which rotation day the
+    snow date itself currently holds (inferred from its events' titles and
+    slot times), how far out the schedule already runs, and which weekdays in
+    between are already-declared days off. That keeps this working even if a
+    /generate record was never made for this account, is stale, or got cleared
+    by a since-run "delete school events" whose calendar deletes didn't fully
+    land — snow days are unplanned by nature, so this shouldn't depend on
+    Breadcrumbs' own memory of a prior action being intact.
+
+    One tradeoff: a one-off early-dismissal date within the shifted range
+    (declared via /generate's early_dismissals, not a day's own recurring
+    period5_end) can't be recovered from calendar-event content alone, so it's
+    not preserved by a snow day that shifts past it.
     """
-    generation = get_last_generation(school_schedule_collection, user["_id"])
-    if not generation:
-        raise HTTPException(status_code=400, detail="Add your schedule to Google Calendar before marking a snow day.")
-
-    start_date = date.fromisoformat(generation["start_date"])
-    end_date = date.fromisoformat(generation["end_date"])
-    off_dates = set(generation.get("off_dates") or [])
-    early_dismissals = {e["date"]: e["period5_end"] for e in generation.get("early_dismissals") or []}
-
     snow_date = body.date
-    if snow_date < start_date or snow_date > end_date:
-        raise HTTPException(status_code=400, detail="That date is outside your generated schedule range.")
     if snow_date.weekday() >= 5:
         raise HTTPException(status_code=400, detail="That date is a weekend — there's no school day to remove.")
-    if snow_date.isoformat() in off_dates:
-        raise HTTPException(status_code=400, detail="That date is already marked as a day off.")
-    if snow_date.isoformat() in early_dismissals:
-        raise HTTPException(status_code=400, detail="That date is marked as an early dismissal, not a day off.")
 
     schedule = get_school_schedule(school_schedule_collection, user["_id"])
     settings = get_settings(settings_collection, user["_id"])
@@ -217,34 +212,54 @@ def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
             detail="Please connect your Google Calendar in Settings before adding a snow day.",
         )
 
-    resume_day_number = rotation_day_number_on(start_date, generation["start_day_number"], off_dates, snow_date)
-    new_off_dates = off_dates | {snow_date.isoformat()}
-
     tz = ZoneInfo(settings["timezone"])
-    window_start = datetime.combine(snow_date, time.min, tzinfo=tz)
-    window_end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=tz)
-    candidates = search_events(creds, "[SCHOOL]", time_min_iso=window_start.isoformat(), time_max_iso=window_end.isoformat())
-    to_delete = [ev for ev in candidates if ev.get("summary", "").endswith(SCHOOL_EVENT_SUFFIX)]
-    delete_gcal_events_bulk(creds, [ev["id"] for ev in to_delete])
+    snow_day_start = datetime.combine(snow_date, time.min, tzinfo=tz)
+    scan_end = datetime.combine(snow_date + timedelta(days=MAX_GENERATE_DAYS), time.min, tzinfo=tz)
+
+    future_candidates = search_events(
+        creds, "[SCHOOL]", time_min_iso=snow_day_start.isoformat(), time_max_iso=scan_end.isoformat()
+    )
+    future_events = [ev for ev in future_candidates if ev.get("summary", "").endswith(SCHOOL_EVENT_SUFFIX)]
+
+    todays_events = [
+        ev for ev in future_events
+        if ev.get("start", {}).get("dateTime", "")[:10] == snow_date.isoformat()
+    ]
+    if not todays_events:
+        raise HTTPException(
+            status_code=400,
+            detail="No school events found on that date — add your schedule to Google Calendar first, or double-check the date.",
+        )
+
+    resume_day_number = resolve_day_number_from_events(schedule, todays_events)
+    if resume_day_number is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't match that date's calendar events to your current schedule configuration — has the schedule changed since these events were added?",
+        )
+
+    dates_with_events = {ev["start"]["dateTime"][:10] for ev in future_events if ev.get("start", {}).get("dateTime")}
+    end_date = max(date.fromisoformat(d) for d in dates_with_events)
+
+    off_dates: set[str] = set()
+    d = snow_date
+    while d <= end_date:
+        if d.weekday() < 5 and d.isoformat() not in dates_with_events:
+            off_dates.add(d.isoformat())
+        d += timedelta(days=1)
+    off_dates.add(snow_date.isoformat())
+
+    delete_gcal_events_bulk(creds, [ev["id"] for ev in future_events])
 
     new_events = compute_school_events(
-        schedule, snow_date, end_date, new_off_dates, resume_day_number, settings["timezone"], early_dismissals,
+        schedule, snow_date, end_date, off_dates, resume_day_number, settings["timezone"], early_dismissals={},
     )
     gcal_ids = create_school_gcal_events_bulk(creds, new_events)
     created = [{**ev, "gcal_event_id": gid} for ev, gid in zip(new_events, gcal_ids)]
 
     record_last_event_watermark(school_schedule_collection, user["_id"], new_events)
-    record_last_generation(
-        school_schedule_collection,
-        user["_id"],
-        start_date=generation["start_date"],
-        end_date=generation["end_date"],
-        start_day_number=generation["start_day_number"],
-        off_dates=sorted(new_off_dates),
-        early_dismissals=generation.get("early_dismissals") or [],
-    )
 
-    return {"removed_date": snow_date.isoformat(), "deleted_count": len(to_delete), "created_count": len(created), "events": created}
+    return {"removed_date": snow_date.isoformat(), "deleted_count": len(future_events), "created_count": len(created), "events": created}
 
 
 @router.post("/delete-future-events")
