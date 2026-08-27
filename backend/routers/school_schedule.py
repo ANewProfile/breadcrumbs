@@ -19,7 +19,7 @@ from services.school_schedule_service import (
     clear_last_event_watermark,
     record_last_generation,
     clear_last_generation,
-    resolve_day_number_from_events,
+    label_for_start_time,
     SCHOOL_EVENT_SUFFIX,
 )
 
@@ -179,24 +179,24 @@ def generate_school_schedule(body: GenerateIn, user: dict = Depends(get_current_
 def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
     """
     Removes a single school day (e.g. a snow closure) from an already-generated
-    calendar and shifts the rotation for every day after it back one school
-    day — Day 2 becomes whatever Day 3 would've been, etc. — rather than
-    skipping the rotation number that date would've had.
+    calendar and shifts every already-scheduled day after it one day later to
+    absorb the gap — Day 3 (which was going to happen on the snow date)
+    instead happens on the next school day, Day 4 moves to the day after that,
+    and so on — with one new school day appended past whatever was previously
+    the last one, so nothing at the end gets silently dropped.
 
-    Reads everything it needs straight from Google Calendar (the actual source
-    of truth) instead of a remembered /generate call: which rotation day the
-    snow date itself currently holds (inferred from its events' titles and
-    slot times), how far out the schedule already runs, and which weekdays in
-    between are already-declared days off. That keeps this working even if a
-    /generate record was never made for this account, is stale, or got cleared
-    by a since-run "delete school events" whose calendar deletes didn't fully
-    land — snow days are unplanned by nature, so this shouldn't depend on
-    Breadcrumbs' own memory of a prior action being intact.
-
-    One tradeoff: a one-off early-dismissal date within the shifted range
-    (declared via /generate's early_dismissals, not a day's own recurring
-    period5_end) can't be recovered from calendar-event content alone, so it's
-    not preserved by a snow day that shifts past it.
+    This works purely off the actual calendar content already sitting on each
+    of those already-scheduled dates — pairing "date N" with "whatever's
+    already on date N+1" and reusing it verbatim (same title, same clock
+    time, just moved to a new date) — instead of recomputing anything from the
+    bell_times/courses config or a remembered /generate call. That means it
+    keeps working even if a /generate record was never made for this account,
+    is stale, or got cleared by a since-run "delete school events" whose
+    calendar deletes didn't fully land, and it never needs to guess which of
+    the 6 rotation days a date "should" be — so a schedule edited since these
+    events were created can't make it misfire. It also means a one-off early
+    dismissal already baked into an event's end time rides along with it
+    automatically when that event's day shifts.
     """
     snow_date = body.date
     if snow_date.weekday() >= 5:
@@ -216,44 +216,57 @@ def add_snow_day(body: SnowDayIn, user: dict = Depends(get_current_user)):
     snow_day_start = datetime.combine(snow_date, time.min, tzinfo=tz)
     scan_end = datetime.combine(snow_date + timedelta(days=MAX_GENERATE_DAYS), time.min, tzinfo=tz)
 
-    future_candidates = search_events(
+    candidates = search_events(
         creds, "[SCHOOL]", time_min_iso=snow_day_start.isoformat(), time_max_iso=scan_end.isoformat()
     )
-    future_events = [ev for ev in future_candidates if ev.get("summary", "").endswith(SCHOOL_EVENT_SUFFIX)]
+    future_events = [ev for ev in candidates if ev.get("summary", "").endswith(SCHOOL_EVENT_SUFFIX)]
 
-    todays_events = [
-        ev for ev in future_events
-        if ev.get("start", {}).get("dateTime", "")[:10] == snow_date.isoformat()
-    ]
-    if not todays_events:
+    events_by_date: dict[str, list[dict]] = {}
+    for ev in future_events:
+        start_iso = ev.get("start", {}).get("dateTime")
+        if not start_iso:
+            continue
+        events_by_date.setdefault(start_iso[:10], []).append(ev)
+
+    if snow_date.isoformat() not in events_by_date:
         raise HTTPException(
             status_code=400,
             detail="No school events found on that date — add your schedule to Google Calendar first, or double-check the date.",
         )
 
-    resume_day_number = resolve_day_number_from_events(schedule, todays_events)
-    if resume_day_number is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Couldn't match that date's calendar events to your current schedule configuration — has the schedule changed since these events were added?",
-        )
+    # Every date that currently has events, chronological — old_dates[0] is
+    # snow_date itself (guaranteed: the search starts at snow_date, and we've
+    # just confirmed it has events). Dates with no events in between (existing
+    # holidays) are simply absent, so they're untouched by the shift.
+    old_dates = sorted(date.fromisoformat(d) for d in events_by_date)
 
-    dates_with_events = {ev["start"]["dateTime"][:10] for ev in future_events if ev.get("start", {}).get("dateTime")}
-    end_date = max(date.fromisoformat(d) for d in dates_with_events)
+    extra_date = old_dates[-1] + timedelta(days=1)
+    while extra_date.weekday() >= 5:
+        extra_date += timedelta(days=1)
+    # new_target_dates[i] is where old_dates[i]'s content moves to: the next
+    # already-scheduled date for every date but the last, and this freshly
+    # appended one for the last date's content.
+    new_target_dates = old_dates[1:] + [extra_date]
 
-    off_dates: set[str] = set()
-    d = snow_date
-    while d <= end_date:
-        if d.weekday() < 5 and d.isoformat() not in dates_with_events:
-            off_dates.add(d.isoformat())
-        d += timedelta(days=1)
-    off_dates.add(snow_date.isoformat())
+    new_events = []
+    for old_d, target_d in zip(old_dates, new_target_dates):
+        for ev in events_by_date[old_d.isoformat()]:
+            summary = ev.get("summary", "")
+            title = summary[: -len(SCHOOL_EVENT_SUFFIX)] if summary.endswith(SCHOOL_EVENT_SUFFIX) else summary
+            start_iso = ev["start"]["dateTime"]
+            end_iso = ev.get("end", {}).get("dateTime", start_iso)
+            new_start = datetime.combine(target_d, datetime.fromisoformat(start_iso).time(), tzinfo=tz)
+            new_end = datetime.combine(target_d, datetime.fromisoformat(end_iso).time(), tzinfo=tz)
+            new_events.append({
+                "title": title,
+                "label": label_for_start_time(schedule["bell_times"], start_iso) or "",
+                "date": target_d.isoformat(),
+                "start": new_start.isoformat(),
+                "end": new_end.isoformat(),
+            })
 
     delete_gcal_events_bulk(creds, [ev["id"] for ev in future_events])
 
-    new_events = compute_school_events(
-        schedule, snow_date, end_date, off_dates, resume_day_number, settings["timezone"], early_dismissals={},
-    )
     gcal_ids = create_school_gcal_events_bulk(creds, new_events)
     created = [{**ev, "gcal_event_id": gid} for ev, gid in zip(new_events, gcal_ids)]
 

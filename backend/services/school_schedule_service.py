@@ -128,30 +128,12 @@ def rotation_day_number_on(start_date: date, start_day_number: str, off_dates: s
     return str(current_day_num)
 
 
-def _day_schedule_signature(schedule: dict, day_num: str) -> dict[str, str]:
-    """Maps period label -> the event title this day number currently produces
-    for that slot (e.g. "Period 1" -> "Chemistry"), per this schedule's live
-    bell_times/courses config. Used to recognize, from calendar events alone,
-    which of the 6 rotation days already-created events represent."""
-    day_sched = schedule["day_schedules"][day_num]
-    courses = schedule.get("courses", {})
-    periods = day_sched.get("periods") or [None] * 5
-    slots = [
-        ("Z Block", day_sched.get("z")),
-        ("Period 1", periods[0]),
-        ("Period 2", periods[1]),
-        ("Period 3", periods[2]),
-        ("Period 4", periods[3]),
-        ("Period 5", periods[4]),
-    ]
-    return {label: courses.get(block, f"{block} Block") for label, block in slots if block is not None}
-
-
-def _label_for_start_time(bell_times: dict, start_iso: str) -> str | None:
+def label_for_start_time(bell_times: dict, start_iso: str) -> str | None:
     """Identifies which slot (Z Block, Period 1..5) a calendar event belongs to
     purely from its own start clock time — those are fixed per slot regardless
     of which rotation day it is, except Period 3 which has two possible start
-    times (one per lunch wave)."""
+    times (one per lunch wave). Cosmetic only (used for the "label" field on a
+    snow day's shifted events) — never required for the shift itself to work."""
     start_hhmm = datetime.fromisoformat(start_iso).strftime("%H:%M")
     for wave in ("wave1", "wave2"):
         if start_hhmm == bell_times[wave]["period3"]["start"]:
@@ -167,41 +149,6 @@ def _label_for_start_time(bell_times: dict, start_iso: str) -> str | None:
         if bell_start and start_hhmm == bell_start:
             return label
     return None
-
-
-def resolve_day_number_from_events(schedule: dict, events: list[dict]) -> str | None:
-    """Given the raw Google Calendar event objects (already filtered to this
-    tool's " [SCHOOL]"-suffixed events) that fall on one date, figures out which
-    of the 6 rotation days produced them — by identifying each event's slot from
-    its start time, then finding the day number whose current course
-    assignments match every observed (slot, title) pair. Returns None if no
-    events are usable, or if more than one day number is equally consistent
-    with what's observed (schedule changed since these events were created).
-    """
-    observed: dict[str, str] = {}
-    for ev in events:
-        summary = ev.get("summary", "")
-        if not summary.endswith(SCHOOL_EVENT_SUFFIX):
-            continue
-        title = summary[: -len(SCHOOL_EVENT_SUFFIX)]
-        if title == "Lunch":
-            continue
-        start_iso = ev.get("start", {}).get("dateTime")
-        if not start_iso:
-            continue
-        label = _label_for_start_time(schedule["bell_times"], start_iso)
-        if label:
-            observed[label] = title
-
-    if not observed:
-        return None
-
-    matches = [
-        day_num
-        for day_num in DAY_NUMBERS
-        if all(_day_schedule_signature(schedule, day_num).get(label) == title for label, title in observed.items())
-    ]
-    return matches[0] if len(matches) == 1 else None
 
 
 def _daily_slots(bell_times: dict, day_sched: dict) -> list[tuple[str, str | None, dict | None]]:

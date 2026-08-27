@@ -272,14 +272,14 @@ def make_rotation_schedule():
     }
 
 
-def make_event(event_id: str, date_str: str, title: str, start_time: str = "08:00") -> dict:
+def make_event(event_id: str, date_str: str, title: str, start_time: str = "08:00", end_time: str = "08:45") -> dict:
     """A minimal Google Calendar event resource for a school-schedule event, as
-    resolve_day_number_from_events / add_snow_day read it: only summary and
-    start.dateTime are inspected."""
+    add_snow_day reads it: summary, start.dateTime, and end.dateTime."""
     return {
         "id": event_id,
         "summary": f"{title} [SCHOOL]",
         "start": {"dateTime": f"{date_str}T{start_time}:00-04:00"},
+        "end": {"dateTime": f"{date_str}T{end_time}:00-04:00"},
     }
 
 
@@ -317,22 +317,6 @@ def test_snow_day_rejects_weekend_date():
     assert exc.value.status_code == 400
 
 
-@patch("routers.school_schedule.search_events")
-@patch("routers.school_schedule.get_credentials_for_user")
-@patch("routers.school_schedule.get_settings")
-@patch("routers.school_schedule.get_school_schedule")
-def test_snow_day_rejects_when_calendar_doesnt_match_current_schedule(
-    mock_get_schedule, mock_get_settings, mock_creds, mock_search
-):
-    mock_get_schedule.return_value = make_rotation_schedule()
-    mock_get_settings.return_value = {"timezone": "America/New_York"}
-    # "Z" isn't any configured day's Period 1 course, so no rotation day matches.
-    mock_search.return_value = [make_event("evt-1", "2024-09-05", "Z")]
-    with pytest.raises(HTTPException) as exc:
-        add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
-    assert exc.value.status_code == 400
-
-
 @patch("routers.school_schedule.record_last_event_watermark")
 @patch("routers.school_schedule.create_school_gcal_events_bulk")
 @patch("routers.school_schedule.delete_gcal_events_bulk")
@@ -340,15 +324,16 @@ def test_snow_day_rejects_when_calendar_doesnt_match_current_schedule(
 @patch("routers.school_schedule.get_credentials_for_user")
 @patch("routers.school_schedule.get_settings")
 @patch("routers.school_schedule.get_school_schedule")
-def test_snow_day_shifts_rotation_without_skipping_the_missed_day_number(
+def test_snow_day_shifts_content_one_school_day_later_and_appends_a_new_last_day(
     mock_get_schedule, mock_get_settings, mock_creds,
     mock_search, mock_delete_bulk, mock_create_bulk, mock_record_watermark,
 ):
-    # Tue 2024-09-03 = Day 1 ... Thu 2024-09-05 = Day 3 (the snow day). These are
-    # the events already sitting on the calendar (this tool's prior output),
-    # which the new implementation reads back instead of a stored /generate
-    # record — Sept 3-4 aren't included since a snow day only needs to look
-    # from the snow date forward.
+    # These are the events already sitting on the calendar (this tool's prior
+    # output) from the snow date (Thu 2024-09-05) through the previous last
+    # school day (Thu 2024-09-12) — read back directly instead of a stored
+    # /generate record. Each date's own content (here, just its Period 1
+    # title) should reappear verbatim one already-scheduled date later, with
+    # a brand new date appended past 09-12 to host what was on 09-12.
     mock_get_schedule.return_value = make_rotation_schedule()
     mock_get_settings.return_value = {"timezone": "America/New_York"}
     mock_search.return_value = [
@@ -365,13 +350,71 @@ def test_snow_day_shifts_rotation_without_skipping_the_missed_day_number(
 
     period1_days = {ev["date"]: ev["title"] for ev in result["events"] if ev["label"] == "Period 1"}
     assert period1_days == {
-        "2024-09-06": "C",  # would've been Day 3 on the snow day; resumes here instead
+        "2024-09-06": "C",  # 09-05's own content, pushed to the next school day
         "2024-09-09": "D",
         "2024-09-10": "E",
         "2024-09-11": "F",
         "2024-09-12": "A",
+        "2024-09-13": "B",  # new day appended past the old last day (09-12) for its content
     }
     assert "2024-09-05" not in period1_days
     assert result["removed_date"] == "2024-09-05"
     assert result["deleted_count"] == 6
+    assert result["created_count"] == 6
     mock_delete_bulk.assert_called_once()
+
+
+@patch("routers.school_schedule.record_last_event_watermark")
+@patch("routers.school_schedule.create_school_gcal_events_bulk")
+@patch("routers.school_schedule.delete_gcal_events_bulk")
+@patch("routers.school_schedule.search_events")
+@patch("routers.school_schedule.get_credentials_for_user")
+@patch("routers.school_schedule.get_settings")
+@patch("routers.school_schedule.get_school_schedule")
+def test_snow_day_appended_day_skips_the_weekend(
+    mock_get_schedule, mock_get_settings, mock_creds,
+    mock_search, mock_delete_bulk, mock_create_bulk, mock_record_watermark,
+):
+    # Only the snow date itself (Fri 2024-09-06) has events, so its content
+    # moves to a brand new appended date — which must skip Sat/Sun.
+    mock_get_schedule.return_value = make_rotation_schedule()
+    mock_get_settings.return_value = {"timezone": "America/New_York"}
+    mock_search.return_value = [make_event("old-1", "2024-09-06", "D")]
+    mock_create_bulk.side_effect = lambda creds, events: [f"evt-{i}" for i in range(len(events))]
+
+    result = add_snow_day(SnowDayIn(date=date(2024, 9, 6)), USER)
+
+    assert [ev["date"] for ev in result["events"]] == ["2024-09-09"]  # Monday, not 09-07/08
+    assert result["events"][0]["title"] == "D"
+    assert result["deleted_count"] == 1
+    assert result["created_count"] == 1
+
+
+@patch("routers.school_schedule.search_events")
+@patch("routers.school_schedule.get_credentials_for_user")
+@patch("routers.school_schedule.get_settings")
+@patch("routers.school_schedule.get_school_schedule")
+def test_snow_day_preserves_an_early_dismissals_end_time_when_it_shifts(
+    mock_get_schedule, mock_get_settings, mock_creds, mock_search
+):
+    # A one-off early dismissal is just whatever end time actually landed on
+    # the calendar event — carrying the raw event forward to its new date
+    # preserves that automatically, with no separate tracking needed.
+    mock_get_schedule.return_value = make_rotation_schedule()
+    mock_get_settings.return_value = {"timezone": "America/New_York"}
+    mock_search.return_value = [
+        make_event("old-1", "2024-09-05", "C"),
+        make_event("old-2", "2024-09-06", "D", end_time="11:15"),  # early dismissal
+    ]
+    with patch("routers.school_schedule.delete_gcal_events_bulk"), \
+         patch("routers.school_schedule.create_school_gcal_events_bulk") as mock_create_bulk, \
+         patch("routers.school_schedule.record_last_event_watermark"):
+        mock_create_bulk.side_effect = lambda creds, events: [f"evt-{i}" for i in range(len(events))]
+        result = add_snow_day(SnowDayIn(date=date(2024, 9, 5)), USER)
+
+    # 09-06's own content (the early-dismissal event) moves to the next
+    # already-scheduled date, 09-09 (09-05's Thu->Fri gap has no weekend to
+    # skip, but 09-06 is a Friday so its successor is Monday 09-09).
+    shifted = next(ev for ev in result["events"] if ev["date"] == "2024-09-09")
+    assert shifted["end"].startswith("2024-09-09T11:15:00")
+    assert shifted["title"] == "D"
