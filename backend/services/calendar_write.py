@@ -12,8 +12,14 @@ RATE_LIMIT_BASE_DELAY_SECONDS = 1.0
 # already risks a slow/oversized response, so chunk well under that). Chunks
 # still run concurrently against each other, same as the old one-request-per-
 # event approach did per event.
-BATCH_CHUNK_SIZE = 50
-BATCH_MAX_WORKERS = 4
+#
+# Each sub-request inside a batch counts against Calendar's per-user quota
+# (500 queries/100s by default) individually, so BATCH_CHUNK_SIZE * BATCH_MAX_WORKERS
+# is roughly the size of the burst fired at once. 50 * 4 = 200 was tripping that
+# quota for larger schedules even with the retry/backoff below absorbing some of
+# it — halving both keeps a burst at 25 * 2 = 50, comfortably under the limit.
+BATCH_CHUNK_SIZE = 25
+BATCH_MAX_WORKERS = 2
 
 
 def _is_rate_limit_error(e: HttpError) -> bool:
