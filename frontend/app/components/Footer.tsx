@@ -30,7 +30,7 @@ export function Footer() {
             </li>
             <li>
               <a
-                href="mailto:theochen16+work@gmail.com"
+                href="mailto:theochen16@gmail.com"
                 className="hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2 transition-colors"
               >
                 Contact

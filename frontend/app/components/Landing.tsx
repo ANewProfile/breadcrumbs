@@ -3,11 +3,11 @@ import Link from "next/link";
 const faqs = [
   {
     q: "What calendar do I need to use Breadcrumbs?",
-    a: "Google Calendar, connected via Google Sign-In — that's the only calendar Breadcrumbs supports today.",
+    a: "Google Calendar, connected via Google Sign-In is the only supported calendar at the moment.",
   },
   {
     q: "Will it touch events I didn't create?",
-    a: "No. Breadcrumbs only reads your existing events to find free time. It only creates, moves, or deletes the events it labels “[Breadcrumbs] ...” — events it made itself.",
+    a: "No. Breadcrumbs only reads your existing events to find free time. It only creates, moves, or deletes the events it made itself (labeled "[Breadcrumbs] ...").
   },
   {
     q: "Is my data secure?",
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: "How much does Breadcrumbs cost?",
-    a: "It's free to use.",
+    a: "It's completely free to use for the time being.",
   },
 ];
 
@@ -34,8 +34,7 @@ export function Landing({ googleLoginUrl }: { googleLoginUrl: string }) {
           </h1>
           <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-400 mt-3 max-w-md">
             Breadcrumbs reads your Google Calendar, finds your free time, and
-            slots your tasks into it — so you only have to decide what needs
-            doing, not when.
+            slots your tasks into it. Now you only have to decide what to do, not when.
           </p>
           <a
             href={googleLoginUrl}
