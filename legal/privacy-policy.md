@@ -14,7 +14,7 @@ If you have questions about this policy, contact us at theochen16@gmail.com.
 
 **From Google Calendar (only if you connect it):**
 - Read access to your calendar events, used solely to compute your free time
-- Write access limited to events Breadcrumbs itself creates on your behalf (labeled "[Breadcrumbs] ...") — Breadcrumbs does not read the content of, modify, or delete events it did not create, beyond checking their start/end times to avoid double-booking you
+- Write access limited to events Breadcrumbs itself creates on your behalf (labeled "[Breadcrumbs] ..."). Breadcrumbs does not read the content of, modify, or delete events it did not create, beyond checking their start/end times to avoid double-booking you
 
 **Information you provide directly:**
 - Tasks you create: title, subject, estimated time, due date, priority
@@ -49,9 +49,9 @@ Your data is stored in MongoDB Atlas, a third-party database provider, which enc
 
 From the Settings page in the app, you can at any time:
 
-- **Disconnect Google Calendar** — revokes our access to your calendar (including on Google's side) without deleting your tasks or account
-- **Delete all your data** — permanently deletes your tasks and settings, while keeping your account and calendar connection
-- **Delete your account** — permanently deletes your account, tasks, settings, and disconnects Google Calendar; this cannot be undone
+- **Disconnect Google Calendar** - revokes our access to your calendar (including on Google's side) without deleting your tasks or account
+- **Delete all your data** - permanently deletes your tasks and settings, while keeping your account and calendar connection
+- **Delete your account** - permanently deletes your account, tasks, settings, and disconnects Google Calendar; this cannot be undone
 
 You can also revoke Breadcrumbs' access at any time directly from your [Google Account permissions page](https://myaccount.google.com/permissions).
 

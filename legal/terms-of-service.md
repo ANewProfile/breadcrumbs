@@ -6,7 +6,7 @@ These Terms of Service ("Terms") govern your use of Breadcrumbs (the "Service"),
 
 ## 1. What Breadcrumbs does
 
-Breadcrumbs reads your Google Calendar to find free time, and schedules tasks you enter into that free time by creating events on your calendar. It also learns from your task-completion history to improve its time estimates over time. It's a personal productivity tool — it is not a substitute for your own judgment about your schedule, deadlines, or commitments.
+Breadcrumbs reads your Google Calendar to find free time, and schedules tasks you enter into that free time by creating events on your calendar. It also learns from your task-completion history to improve its time estimates over time. It's a personal productivity tool, not a substitute for your own judgment about your schedule, deadlines, or commitments.
 
 ## 2. Your account
 
@@ -26,7 +26,7 @@ We may suspend or terminate accounts that violate these Terms.
 
 You retain ownership of the tasks, settings, and other content you enter into Breadcrumbs. By using the Service, you give us permission to process that data as necessary to provide the Service (as described in our [Privacy Policy](./privacy-policy.md)).
 
-You can delete your data or account at any time from the Settings page — see the Privacy Policy for details on exactly what each option removes.
+You can delete your data or account at any time from the Settings page. See the Privacy Policy for details on exactly what each option removes.
 
 ## 5. Calendar changes made on your behalf
 
