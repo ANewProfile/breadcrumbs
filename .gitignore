@@ -13,3 +13,4 @@ frontend/AGENTS.md
 frontend/CLAUDE.md
 frontend/.DS_Store
 handoff.md
+node_modules/*

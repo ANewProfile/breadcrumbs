@@ -7,7 +7,7 @@ const faqs = [
   },
   {
     q: "Will it touch events I didn't create?",
-    a: "No. Breadcrumbs only reads your existing events to find free time. It only creates, moves, or deletes the events it made itself (labeled "[Breadcrumbs] ...").
+    a: "No. Breadcrumbs only reads your existing events to find free time. It only creates, moves, or deletes the events it made itself (labeled \"[Breadcrumbs] ...\")."
   },
   {
     q: "Is my data secure?",
