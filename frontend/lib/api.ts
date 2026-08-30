@@ -79,7 +79,9 @@ export async function createTask(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create task");
+  if (!res.ok) {
+    throw new Error(await parseErrorDetail(res, "Failed to create task"));
+  }
   return res.json();
 }
 

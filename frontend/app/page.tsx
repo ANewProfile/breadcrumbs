@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { fetchTasks, fetchSettings, fetchCurrentUser, BASE, type Task } from "@/lib/api";
 import { AddTaskForm } from "./components/AddTaskForm";
 import { RunSchedulerBtn } from "./components/RunSchedulerBtn";
 import { TaskCard } from "./components/TaskCard";
 import { Landing } from "./components/Landing";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
 
 function dayLabel(dateStr: string): string {
   const date = new Date(`${dateStr}T00:00:00`);

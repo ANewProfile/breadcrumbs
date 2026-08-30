@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
+import { CookieConsent } from "./components/CookieConsent";
 import { fetchCurrentUser } from "@/lib/api";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,12 +19,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Breadcrumbs — auto-schedule your to-do list",
     template: "%s — Breadcrumbs",
   },
   description:
     "Breadcrumbs reads your Google Calendar, finds your free time, and automatically schedules your to-do list into it.",
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default async function RootLayout({
@@ -56,6 +62,7 @@ export default async function RootLayout({
         <Header user={user} />
         {children}
         <Footer />
+        <CookieConsent />
       </body>
     </html>
   );

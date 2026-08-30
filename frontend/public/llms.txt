@@ -1,0 +1,11 @@
+# Breadcrumbs
+
+> Breadcrumbs is a smart student productivity app that auto-schedules a to-do list around a user's life. It connects to Google Calendar, reads existing commitments, and slots tasks into available free time — grouping similar subjects together and learning from completion history to improve time estimates.
+
+Breadcrumbs is a signed-in product: after Google sign-in, the task dashboard and scheduler are the core experience, and that content is per-user and not indexable. The pages below are the site's public surface.
+
+## Pages
+
+- [Home](https://usebreadcrumbs.app/): Sign-in landing page; becomes the task dashboard once signed in.
+- [Privacy Policy](https://usebreadcrumbs.app/privacy): What data Breadcrumbs collects from Google Sign-In and Google Calendar, and how it's used, stored, and deleted.
+- [Terms of Service](https://usebreadcrumbs.app/terms): Terms governing use of the service.

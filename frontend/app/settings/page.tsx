@@ -8,6 +8,9 @@ import { Breadcrumbs } from "@/app/components/Breadcrumbs";
 export const metadata: Metadata = {
   title: "Settings",
   description: "Manage your scheduling preferences, Google Calendar connection, and account data.",
+  alternates: {
+    canonical: "/settings",
+  },
 };
 
 export default async function SettingsPage() {

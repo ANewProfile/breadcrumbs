@@ -1,12 +1,32 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
 import { createTaskAction } from "@/app/actions";
 
 const inputClass =
   "bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500";
 
 export function AddTaskForm() {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function handleSubmit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const result = await createTaskAction(formData);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        formRef.current?.reset();
+      }
+    });
+  }
+
   return (
     <form
-      action={createTaskAction}
+      ref={formRef}
+      action={handleSubmit}
       className="flex flex-col gap-3 mb-6 sm:mb-8 p-4 sm:p-5 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-900 shadow-sm"
     >
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
@@ -64,10 +84,17 @@ export function AddTaskForm() {
 
       <button
         type="submit"
-        className="w-full sm:w-auto sm:self-start bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-500 transition-colors"
+        disabled={pending}
+        className="w-full sm:w-auto sm:self-start bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors"
       >
-        Add task
+        {pending ? "Adding…" : "Add task"}
       </button>
+
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

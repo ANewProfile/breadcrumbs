@@ -5,6 +5,9 @@ import { Breadcrumbs } from "@/app/components/Breadcrumbs";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How Breadcrumbs collects, uses, and protects your information.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 const h2 =

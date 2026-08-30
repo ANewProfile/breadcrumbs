@@ -21,7 +21,9 @@ import {
   type TimeTrackingMode,
 } from "@/lib/api";
 
-export async function createTaskAction(formData: FormData) {
+export async function createTaskAction(
+  formData: FormData
+): Promise<{ error?: string }> {
   const title = formData.get("title") as string;
   const subject = formData.get("subject") as string;
   const estimated_minutes = parseInt(
@@ -30,8 +32,13 @@ export async function createTaskAction(formData: FormData) {
   );
   const due_date = (formData.get("due_date") as string) || null;
   const priority = (formData.get("priority") as Priority) || "medium";
-  await createTask({ title, subject, estimated_minutes, due_date, priority });
+  try {
+    await createTask({ title, subject, estimated_minutes, due_date, priority });
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
   revalidatePath("/");
+  return {};
 }
 
 export async function completeTaskAction(

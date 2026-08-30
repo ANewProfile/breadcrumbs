@@ -3,6 +3,7 @@
 import { useTransition, useState } from "react";
 import type { Settings } from "@/lib/api";
 import { updateSettingsAction } from "@/app/actions";
+import { InfoTooltip } from "./InfoTooltip";
 
 const COMMON_TIMEZONES = [
   "America/New_York",
@@ -81,7 +82,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Max continuous minutes per subject
+          <span className="inline-flex items-center gap-1">
+            Max continuous minutes per subject
+            <InfoTooltip text="The longest stretch the scheduler will assign to one subject in a row before switching, based on cognitive-load research on interleaving." />
+          </span>
           <input
             name="max_continuous_minutes"
             type="number"
@@ -92,7 +96,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Max subjects per day
+          <span className="inline-flex items-center gap-1">
+            Max subjects per day
+            <InfoTooltip text="Caps how many different subjects get scheduled in one day, so your day isn't fragmented across too many topics." />
+          </span>
           <input
             name="max_subjects_per_day"
             type="number"
@@ -103,7 +110,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Scheduling lookahead (days)
+          <span className="inline-flex items-center gap-1">
+            Scheduling lookahead (days)
+            <InfoTooltip text="How many days ahead the scheduler looks when placing tasks into your free time." />
+          </span>
           <input
             name="lookahead_days"
             type="number"
@@ -116,7 +126,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       </div>
 
       <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-        How do you want to record how long tasks actually took?
+        <span className="inline-flex items-center gap-1">
+          How do you want to record how long tasks actually took?
+          <InfoTooltip text="Used to compare against your estimates and improve future time predictions for similar tasks." />
+        </span>
         <select
           name="time_tracking_mode"
           defaultValue={settings.time_tracking_mode}

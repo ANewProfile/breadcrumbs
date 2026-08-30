@@ -5,6 +5,9 @@ import { Breadcrumbs } from "@/app/components/Breadcrumbs";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "The terms that govern your use of Breadcrumbs.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 const h2 =
