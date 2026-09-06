@@ -2,8 +2,23 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "22:00", tz_str: str = "America/New_York", lookahead_days: int = 7) -> list:
+
+def _earliest_slot(now: datetime) -> datetime:
+    """
+    Never schedule a task for right this instant — give the user a 10-minute
+    buffer after pressing "schedule", and land it on a clean 5-minute mark
+    rather than some arbitrary :07 or :23.
+    """
+    candidate = (now + timedelta(minutes=10)).replace(second=0, microsecond=0)
+    remainder = candidate.minute % 5
+    if remainder:
+        candidate += timedelta(minutes=5 - remainder)
+    return candidate
+
+
+def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "22:00", tz_str: str = "America/New_York", lookahead_days: int = 7, no_go_zones: list | None = None) -> list:
     tz = ZoneInfo(tz_str)
+    no_go_zones = no_go_zones or []
 
     busy = []
     for e in events:
@@ -16,6 +31,7 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
         busy.append((start, end))
 
     now = datetime.now(tz)
+    earliest = _earliest_slot(now)
 
     # The scheduling window always spans "now" through now + lookahead_days,
     # independent of whether any events exist in that range (get_events fetches
@@ -35,7 +51,7 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
             datetime(current_date.year, current_date.month, current_date.day,
                      int(day_start.split(":")[0]), int(day_start.split(":")[1]),
                      tzinfo=tz),
-            now,
+            earliest,
         )
         window_end = datetime(current_date.year, current_date.month, current_date.day,
                               int(day_end.split(":")[0]), int(day_end.split(":")[1]),
@@ -47,6 +63,21 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
                 clipped_start = max(s, window_start)
                 clipped_end = min(e, window_end)
                 day_busy.append((clipped_start, clipped_end))
+
+        for z in no_go_zones:
+            if z.get("date"):
+                applies = z["date"] == current_date.isoformat()
+            else:
+                days_of_week = z.get("days_of_week")
+                applies = not days_of_week or current_date.weekday() in days_of_week
+            if not applies:
+                continue
+            z_start_h, z_start_m = map(int, z["start_time"].split(":"))
+            z_end_h, z_end_m = map(int, z["end_time"].split(":"))
+            z_start = datetime(current_date.year, current_date.month, current_date.day, z_start_h, z_start_m, tzinfo=tz)
+            z_end = datetime(current_date.year, current_date.month, current_date.day, z_end_h, z_end_m, tzinfo=tz)
+            if z_start < window_end and z_end > window_start:
+                day_busy.append((max(z_start, window_start), min(z_end, window_end)))
 
         day_busy.sort(key=lambda x: x[0])
         merged = []

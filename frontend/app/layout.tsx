@@ -4,7 +4,7 @@ import Script from "next/script";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { CookieConsent } from "./components/CookieConsent";
-import { fetchCurrentUser } from "@/lib/api";
+import { fetchCurrentUser, fetchDevModeEnabled } from "@/lib/api";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -36,7 +36,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await fetchCurrentUser();
+  const [user, devModeEnabled] = await Promise.all([fetchCurrentUser(), fetchDevModeEnabled()]);
 
   return (
     <html
@@ -59,7 +59,7 @@ export default async function RootLayout({
         >
           Skip to main content
         </a>
-        <Header user={user} />
+        <Header user={user} devModeEnabled={devModeEnabled} />
         {children}
         <Footer />
         <CookieConsent />

@@ -2,7 +2,16 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import HTTPException
 from bson import ObjectId
-from routers.auth import google_login, google_callback, logout, me, STATE_COOKIE_NAME, VERIFIER_COOKIE_NAME
+from routers.auth import (
+    google_login,
+    google_callback,
+    logout,
+    me,
+    dev_login,
+    dev_mode_status,
+    STATE_COOKIE_NAME,
+    VERIFIER_COOKIE_NAME,
+)
 from auth.session import SESSION_COOKIE_NAME
 
 
@@ -113,3 +122,44 @@ def test_me_reports_google_connected_false_when_not_connected():
     user_id = ObjectId()
     result = me({"_id": user_id, "email": "a@b.com", "name": "A", "picture": None})
     assert result["user"]["google_connected"] is False
+
+
+@patch("routers.auth.DEV_MODE", False)
+def test_dev_login_disabled_outside_dev_mode():
+    with pytest.raises(HTTPException) as exc_info:
+        dev_login()
+    assert exc_info.value.status_code == 404
+
+
+@patch("routers.auth.DEV_MODE", True)
+@patch("routers.auth.create_session")
+@patch("routers.auth.users_collection")
+@patch("routers.auth.upsert_user")
+def test_dev_login_creates_fake_user_and_redirects_with_session_cookie(
+    mock_upsert, mock_users_collection, mock_create_session
+):
+    user_id = ObjectId()
+    mock_upsert.return_value = {"_id": user_id}
+    mock_create_session.return_value = "dev-session-token"
+
+    response = dev_login()
+
+    _, upsert_kwargs = mock_upsert.call_args
+    assert upsert_kwargs["google_sub"] == "dev-fake-user"
+    mock_users_collection.update_one.assert_called_once_with(
+        {"_id": user_id}, {"$set": {"is_dev_user": True}}
+    )
+    mock_create_session.assert_called_once_with(mock_create_session.call_args[0][0], user_id)
+    assert response.status_code in (302, 307)
+    set_cookie_headers = response.headers.getlist("set-cookie")
+    assert any(SESSION_COOKIE_NAME in h and "dev-session-token" in h for h in set_cookie_headers)
+
+
+@patch("routers.auth.DEV_MODE", False)
+def test_dev_mode_status_reports_disabled():
+    assert dev_mode_status() == {"enabled": False}
+
+
+@patch("routers.auth.DEV_MODE", True)
+def test_dev_mode_status_reports_enabled():
+    assert dev_mode_status() == {"enabled": True}

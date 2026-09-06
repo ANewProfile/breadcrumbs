@@ -10,11 +10,14 @@ import {
   updateTask,
   rescheduleTask,
   runScheduler,
+  rescheduleMissed,
   updateSettings,
   logout,
   disconnectGoogle,
   deleteAccountData,
   deleteAccount,
+  createNoGoZone,
+  deleteNoGoZone,
   SESSION_COOKIE_NAME,
   type Priority,
   type Settings,
@@ -107,6 +110,16 @@ export async function runSchedulerAction(): Promise<{ error?: string }> {
   }
 }
 
+export async function rescheduleMissedAction(): Promise<{ error?: string }> {
+  try {
+    await rescheduleMissed();
+    revalidatePath("/");
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 export async function updateSettingsAction(
   formData: FormData
 ): Promise<{ error?: string }> {
@@ -124,6 +137,14 @@ export async function updateSettingsAction(
     ),
     lookahead_days: parseInt(formData.get("lookahead_days") as string, 10),
     time_tracking_mode: formData.get("time_tracking_mode") as TimeTrackingMode,
+    break_between_tasks_minutes: parseInt(
+      formData.get("break_between_tasks_minutes") as string,
+      10
+    ),
+    break_between_subjects_minutes: parseInt(
+      formData.get("break_between_subjects_minutes") as string,
+      10
+    ),
   };
   try {
     await updateSettings(data);
@@ -132,6 +153,37 @@ export async function updateSettingsAction(
   } catch (e) {
     return { error: (e as Error).message };
   }
+}
+
+export async function createNoGoZoneAction(
+  formData: FormData
+): Promise<{ error?: string }> {
+  const label = formData.get("label") as string;
+  const start_time = formData.get("start_time") as string;
+  const end_time = formData.get("end_time") as string;
+  const recurrence = formData.get("recurrence") as string;
+
+  const data: Parameters<typeof createNoGoZone>[0] = { label, start_time, end_time };
+  if (recurrence === "date") {
+    data.date = (formData.get("date") as string) || null;
+  } else {
+    const days = formData.getAll("days_of_week").map((d) => parseInt(d as string, 10));
+    data.days_of_week = days.length > 0 ? days : null;
+  }
+
+  try {
+    await createNoGoZone(data);
+    revalidatePath("/");
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function deleteNoGoZoneAction(formData: FormData) {
+  const id = formData.get("id") as string;
+  await deleteNoGoZone(id);
+  revalidatePath("/");
 }
 
 export async function logoutAction() {

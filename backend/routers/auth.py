@@ -21,6 +21,7 @@ COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
 STATE_COOKIE_NAME = "breadcrumbs_oauth_state"
 VERIFIER_COOKIE_NAME = "breadcrumbs_oauth_verifier"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 days, matches user_service.SESSION_TTL_DAYS
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 
 @router.get("/google/login", dependencies=[Depends(rate_limit("20/minute"))])
@@ -75,6 +76,50 @@ def google_callback(request: Request, code: str, state: str):
     response = RedirectResponse(FRONTEND_URL)
     response.delete_cookie(STATE_COOKIE_NAME, domain=COOKIE_DOMAIN)
     response.delete_cookie(VERIFIER_COOKIE_NAME, domain=COOKIE_DOMAIN)
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        domain=COOKIE_DOMAIN,
+        max_age=SESSION_MAX_AGE,
+    )
+    return response
+
+
+@router.get("/dev-mode")
+def dev_mode_status():
+    """Lets the frontend decide whether to show a "Dev Login" button, without
+    exposing anything else about the backend's configuration."""
+    return {"enabled": DEV_MODE}
+
+
+@router.api_route("/dev-login", methods=["GET", "POST"])
+def dev_login():
+    """
+    Local-testing-only stand-in for the real Google OAuth round trip. Logs in
+    as a fixed fake user with no google_credentials, so downstream code (see
+    schedule.py) knows to run the scheduler against fake free/busy data
+    instead of a real calendar, and to skip creating real Google events.
+    Refuses to run unless DEV_MODE is set, so this can never be reachable
+    against a real deployment. Redirects into the app the same way the real
+    Google callback does, so it can be used as a plain clickable link.
+    """
+    if not DEV_MODE:
+        raise HTTPException(status_code=404)
+
+    user = upsert_user(
+        users_collection,
+        google_sub="dev-fake-user",
+        email="dev@localhost.test",
+        name="Dev User",
+        picture=None,
+    )
+    users_collection.update_one({"_id": user["_id"]}, {"$set": {"is_dev_user": True}})
+    token = create_session(sessions_collection, user["_id"])
+
+    response = RedirectResponse(FRONTEND_URL)
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,

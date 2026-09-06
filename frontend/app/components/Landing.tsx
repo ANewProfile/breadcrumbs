@@ -24,7 +24,13 @@ const faqs = [
   },
 ];
 
-export function Landing({ googleLoginUrl }: { googleLoginUrl: string }) {
+export function Landing({
+  googleLoginUrl,
+  devLoginUrl,
+}: {
+  googleLoginUrl: string;
+  devLoginUrl?: string;
+}) {
   return (
     <>
       <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 sm:pb-10">
@@ -42,6 +48,15 @@ export function Landing({ googleLoginUrl }: { googleLoginUrl: string }) {
           >
             Sign in with Google
           </a>
+          {devLoginUrl && (
+            <a
+              href={devLoginUrl}
+              className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 border border-dashed border-zinc-400 dark:border-zinc-600 px-5 py-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              title="Log in as a fake user with no real Google Calendar — for local testing only"
+            >
+              Dev Login (test mode)
+            </a>
+          )}
           <a
             href="#faq"
             className="mt-4 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 underline underline-offset-2 transition-colors"

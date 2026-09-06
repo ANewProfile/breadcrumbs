@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['usebreadcrumbs.app'],
+  turbopack: {
+  	  root: __dirname,
+  },
+  allowedDevOrigins: ['usebreadcrumbs.app', 'localhost:3000'],
 };
 
 export default nextConfig;

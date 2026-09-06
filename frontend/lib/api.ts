@@ -42,6 +42,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   return data.user ?? null;
 }
 
+export async function fetchDevModeEnabled(): Promise<boolean> {
+  const res = await apiFetch("/auth/dev-mode");
+  if (!res.ok) return false;
+  const data = await res.json();
+  return Boolean(data.enabled);
+}
+
 export type Priority = "low" | "medium" | "high";
 
 export type Task = {
@@ -147,6 +154,15 @@ export async function runScheduler(): Promise<unknown> {
   return res.json();
 }
 
+export async function rescheduleMissed(): Promise<unknown> {
+  const res = await apiFetch("/schedule/reschedule-missed", { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? "Failed to reschedule missed tasks");
+  }
+  return res.json();
+}
+
 export type TimeTrackingMode = "manual" | "automatic";
 
 export type Settings = {
@@ -157,6 +173,8 @@ export type Settings = {
   max_subjects_per_day: number;
   lookahead_days: number;
   time_tracking_mode: TimeTrackingMode;
+  break_between_tasks_minutes: number;
+  break_between_subjects_minutes: number;
 };
 
 export async function fetchSettings(): Promise<Settings> {
@@ -177,6 +195,44 @@ export async function updateSettings(
     throw new Error(await parseErrorDetail(res, "Failed to update settings"));
   }
   return res.json();
+}
+
+export type NoGoZone = {
+  id: string;
+  label: string;
+  start_time: string;
+  end_time: string;
+  date: string | null;
+  days_of_week: number[] | null;
+};
+
+export async function fetchNoGoZones(): Promise<NoGoZone[]> {
+  const res = await apiFetch("/no-go-zones");
+  if (!res.ok) throw new Error("Failed to fetch no-go zones");
+  return res.json();
+}
+
+export async function createNoGoZone(data: {
+  label: string;
+  start_time: string;
+  end_time: string;
+  date?: string | null;
+  days_of_week?: number[] | null;
+}): Promise<NoGoZone> {
+  const res = await apiFetch("/no-go-zones", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    throw new Error(await parseErrorDetail(res, "Failed to create no-go zone"));
+  }
+  return res.json();
+}
+
+export async function deleteNoGoZone(id: string): Promise<void> {
+  const res = await apiFetch(`/no-go-zones/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete no-go zone");
 }
 
 export async function logout(): Promise<void> {

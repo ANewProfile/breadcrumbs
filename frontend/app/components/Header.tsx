@@ -25,7 +25,13 @@ function Logo() {
   );
 }
 
-export function Header({ user }: { user: CurrentUser | null }) {
+export function Header({
+  user,
+  devModeEnabled,
+}: {
+  user: CurrentUser | null;
+  devModeEnabled?: boolean;
+}) {
   return (
     <header className="sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
@@ -58,12 +64,23 @@ export function Header({ user }: { user: CurrentUser | null }) {
               </form>
             </>
           ) : (
-            <a
-              href={`${BASE}/auth/google/login`}
-              className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              Sign in with Google
-            </a>
+            <>
+              <a
+                href={`${BASE}/auth/google/login`}
+                className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Sign in with Google
+              </a>
+              {devModeEnabled && (
+                <a
+                  href={`${BASE}/auth/dev-login`}
+                  className="text-sm font-medium text-zinc-600 dark:text-zinc-300 border border-dashed border-zinc-400 dark:border-zinc-600 px-3 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Log in as a fake user with no real Google Calendar — for local testing only"
+                >
+                  Dev Login
+                </a>
+              )}
+            </>
           )}
           <ThemeToggle />
         </nav>

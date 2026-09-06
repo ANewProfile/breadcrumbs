@@ -6,6 +6,8 @@ DEFAULT_SETTINGS = {
     "max_subjects_per_day": 3,
     "lookahead_days": 7,
     "time_tracking_mode": "manual",
+    "break_between_tasks_minutes": 0,
+    "break_between_subjects_minutes": 0,
 }
 
 

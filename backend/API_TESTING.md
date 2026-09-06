@@ -96,6 +96,32 @@ curl -s -X POST http://localhost:8000/schedule/run | python3 -m json.tool
 ```
 Expect: `{"free_blocks": [...], "assignments": {}}` — `free_blocks` populated from your real calendar. `assignments` should be empty because it's still a stub.
 
+### Skipping real Google login while testing
+
+To see what the scheduler *would* do without going through Google OAuth or
+touching a real calendar, run the backend with `DEV_MODE=true` and log in via
+the fake dev endpoint instead of `/auth/google/login`:
+
+```bash
+DEV_MODE=true uvicorn main:app --reload   # start the server with dev mode on
+
+curl -s -c cookies.txt http://localhost:8000/auth/dev-login   # GET, follows the redirect just like the real callback
+
+curl -s -b cookies.txt -X POST http://localhost:8000/schedule/run | python3 -m json.tool
+```
+
+This logs in as a fixed fake user with no Google account attached, so
+`free_blocks` is computed against an empty (fully free) calendar instead of a
+real one, and no real Google Calendar events are created — `assignments`
+still shows exactly where each task would have landed. `/auth/dev-login`
+returns `404` unless `DEV_MODE=true` is set, so it's never reachable in a real
+deployment.
+
+With `DEV_MODE=true` set on the backend, the frontend also shows a "Dev
+Login" button next to "Sign in with Google" wherever that button appears —
+click it to log in as the fake dev user directly in the browser, no OAuth
+required.
+
 ---
 
 ## Error cases

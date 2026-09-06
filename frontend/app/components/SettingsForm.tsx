@@ -125,6 +125,37 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </label>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="inline-flex items-center gap-1">
+            Break between tasks (minutes)
+            <InfoTooltip text="A gap the scheduler leaves between two back-to-back tasks in the same subject." />
+          </span>
+          <input
+            name="break_between_tasks_minutes"
+            type="number"
+            min="0"
+            defaultValue={settings.break_between_tasks_minutes}
+            required
+            className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="inline-flex items-center gap-1">
+            Break between subjects (minutes)
+            <InfoTooltip text="A gap the scheduler leaves whenever it switches from one subject to another." />
+          </span>
+          <input
+            name="break_between_subjects_minutes"
+            type="number"
+            min="0"
+            defaultValue={settings.break_between_subjects_minutes}
+            required
+            className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500"
+          />
+        </label>
+      </div>
+
       <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
         <span className="inline-flex items-center gap-1">
           How do you want to record how long tasks actually took?

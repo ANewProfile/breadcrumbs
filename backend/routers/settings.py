@@ -20,6 +20,8 @@ class SettingsUpdate(BaseModel):
     max_subjects_per_day: int | None = None
     lookahead_days: int | None = None
     time_tracking_mode: Literal["manual", "automatic"] | None = None
+    break_between_tasks_minutes: int | None = None
+    break_between_subjects_minutes: int | None = None
 
     @field_validator("day_start", "day_end")
     @classmethod
@@ -43,6 +45,13 @@ class SettingsUpdate(BaseModel):
     def validate_positive(cls, v):
         if v is not None and v <= 0:
             raise ValueError("must be a positive number")
+        return v
+
+    @field_validator("break_between_tasks_minutes", "break_between_subjects_minutes")
+    @classmethod
+    def validate_non_negative(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("must be zero or a positive number")
         return v
 
 

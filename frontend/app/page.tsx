@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { fetchTasks, fetchSettings, fetchCurrentUser, BASE, type Task } from "@/lib/api";
+import { fetchTasks, fetchSettings, fetchCurrentUser, fetchDevModeEnabled, fetchNoGoZones, BASE, type Task } from "@/lib/api";
 import { AddTaskForm } from "./components/AddTaskForm";
 import { RunSchedulerBtn } from "./components/RunSchedulerBtn";
+import { RescheduleMissedBtn } from "./components/RescheduleMissedBtn";
 import { TaskCard } from "./components/TaskCard";
 import { Landing } from "./components/Landing";
+import { NoGoZonesForm } from "./components/NoGoZonesForm";
 
 export const metadata: Metadata = {
   alternates: {
@@ -49,15 +51,26 @@ export default async function Home() {
   const user = await fetchCurrentUser();
 
   if (!user) {
-    return <Landing googleLoginUrl={`${BASE}/auth/google/login`} />;
+    const devModeEnabled = await fetchDevModeEnabled();
+    return (
+      <Landing
+        googleLoginUrl={`${BASE}/auth/google/login`}
+        devLoginUrl={devModeEnabled ? `${BASE}/auth/dev-login` : undefined}
+      />
+    );
   }
 
-  const [tasks, settings] = await Promise.all([fetchTasks(), fetchSettings()]);
+  const [tasks, settings, noGoZones] = await Promise.all([fetchTasks(), fetchSettings(), fetchNoGoZones()]);
   const timeTrackingMode = settings.time_tracking_mode;
   const pending = tasks.filter((t) => t.status === "pending");
   const scheduled = tasks.filter((t) => t.status === "scheduled");
   const unschedulable = tasks.filter((t) => t.status === "unschedulable");
   const scheduledByDay = groupScheduledByDay(scheduled);
+  const now = new Date();
+  const missedCount = scheduled.filter((t) => {
+    const block = t.scheduled_blocks[0];
+    return block && new Date(block.end) < now;
+  }).length;
 
   return (
     <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -71,7 +84,9 @@ export default async function Home() {
       </div>
 
       <AddTaskForm />
+      <NoGoZonesForm zones={noGoZones} />
       <RunSchedulerBtn />
+      {missedCount > 0 && <RescheduleMissedBtn count={missedCount} />}
 
       {scheduledByDay.length > 0 && (
         <section className="mb-8">

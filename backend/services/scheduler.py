@@ -39,22 +39,44 @@ def _sort_key(task: dict, today: date):
     )
 
 
+def _task_due_date(task: dict) -> date | None:
+    due = task.get("due_date")
+    if not due:
+        return None
+    return due if isinstance(due, date) else date.fromisoformat(due)
+
+
 def assign_tasks(
     tasks: list,
     free_blocks: list,
     max_continuous_minutes: int = DEFAULT_MAX_CONTINUOUS_MINUTES,
     max_subjects_per_day: int = DEFAULT_MAX_SUBJECTS_PER_DAY,
+    break_between_tasks_minutes: int = 0,
+    break_between_subjects_minutes: int = 0,
 ) -> tuple[dict, list]:
     today = free_blocks[0]["start"].date() if free_blocks else date.today()
     tasks_sorted = sorted(tasks, key=lambda t: _sort_key(t, today))
 
     blocks = [dict(b, streak_subject=None, streak_minutes=0) for b in free_blocks]
+    day_blocks: dict[date, list] = {}
+    for b in blocks:
+        day_blocks.setdefault(b["start"].date(), []).append(b)
+
     day_subjects: dict[date, set] = {}
+    day_minutes: dict[date, int] = {}
     assignments: dict[str, dict] = {}
     unfit_ids: list[str] = []
 
+    def gap_for(block, subject):
+        if block["streak_subject"] is None:
+            return 0
+        if block["streak_subject"] == subject:
+            return break_between_tasks_minutes
+        return break_between_subjects_minutes
+
     def can_place(block, subject, needed, enforce_soft_constraints):
-        if block["duration_min"] < needed:
+        gap = gap_for(block, subject)
+        if block["duration_min"] < needed + gap:
             return False
         if not enforce_soft_constraints:
             return True
@@ -67,6 +89,11 @@ def assign_tasks(
         return True
 
     def place(block, task, subject, needed):
+        gap = gap_for(block, subject)
+        if gap:
+            block["start"] += timedelta(minutes=gap)
+            block["duration_min"] -= gap
+
         end_dt = block["start"] + timedelta(minutes=needed)
         assignments[task["id"]] = {
             "start": block["start"].isoformat(),
@@ -74,6 +101,7 @@ def assign_tasks(
         }
         day = block["start"].date()
         day_subjects.setdefault(day, set()).add(subject)
+        day_minutes[day] = day_minutes.get(day, 0) + needed
         if block["streak_subject"] == subject:
             block["streak_minutes"] += needed
         else:
@@ -82,20 +110,42 @@ def assign_tasks(
         block["start"] = end_dt
         block["duration_min"] -= needed
 
+    def candidate_days(task):
+        due_date = _task_due_date(task)
+        # Hard constraint: never place a task on a day after its due date.
+        days = [d for d in day_blocks if due_date is None or d <= due_date]
+        eve = due_date - timedelta(days=1) if due_date else None
+        # Prefer the least-loaded day so far (spreads work out instead of
+        # cramming today just because it fits), and avoid landing on the day
+        # right before the due date unless nothing else is available.
+        non_eve = sorted((d for d in days if d != eve), key=lambda d: (day_minutes.get(d, 0), d))
+        eve_days = [d for d in days if d == eve]
+        return non_eve, eve_days
+
+    def try_days(days, task, subject, needed, enforce_soft_constraints):
+        for d in days:
+            for block in day_blocks[d]:
+                if can_place(block, subject, needed, enforce_soft_constraints):
+                    place(block, task, subject, needed)
+                    return True
+        return False
+
     for task in tasks_sorted:
         subject = task["subject"]
         needed = round(task.get("adjusted_minutes", task["estimated_minutes"]))
+        non_eve, eve_days = candidate_days(task)
 
-        block = next((b for b in blocks if can_place(b, subject, needed, True)), None)
-        if block is None:
+        placed = (
+            try_days(non_eve, task, subject, needed, True)
             # Soft constraints (subject-switch cap, continuous-work cap) are cognitive-load
             # preferences, not hard requirements — fall back to plain duration-fit so a task
             # never goes unschedulable just because the ideal slot was already claimed.
-            block = next((b for b in blocks if can_place(b, subject, needed, False)), None)
-
-        if block is not None:
-            place(block, task, subject, needed)
-        else:
+            or try_days(non_eve, task, subject, needed, False)
+            # Only fall back to the day right before the due date as a last resort.
+            or try_days(eve_days, task, subject, needed, True)
+            or try_days(eve_days, task, subject, needed, False)
+        )
+        if not placed:
             unfit_ids.append(task["id"])
 
     return assignments, unfit_ids
