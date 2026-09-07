@@ -7,9 +7,9 @@ A smart student productivity app that auto-schedules your to-do list around your
 Breadcrumbs connects to your Google Calendar, reads your existing commitments, and intelligently slots your tasks into available free time. You shouldn't have to think about *when* to do things, only *what* needs to get done.
 
 The scheduling algorithm optimizes for three things:
-- **Free time** - tasks are only scheduled into windows that actually exist in your calendar
-- **Subject grouping** - similar subjects are batched together based on cognitive load research (e.g. math → math → history → history, not math → history → math)
-- **Time estimation** - Breadcrumbs weighs your own estimate against historical data from similar past tasks to produce a more accurate prediction over time
+- **Free time**: tasks are only scheduled into your free time, based on your Google Calendar events
+- **Subject grouping**: tasks of the same subject are scheduled next to each other based on cognitive load research (e.g. math → math → history → history, not math → history → math → history)
+- **Time estimation**: Breadcrumbs weighs your own estimate against historical data from tasks of the same subject to produce a custom prediction of how long a task will *actually* take you
 
 ## Tech Stack
 
@@ -24,7 +24,6 @@ The scheduling algorithm optimizes for three things:
 
 - [ ] ML-based time prediction (once sufficient per-user historical data exists)
 - [ ] Collaboration / shared tasks for group projects
-- [ ] Canvas / Google Classroom integration
 
 ## Getting Started
 
