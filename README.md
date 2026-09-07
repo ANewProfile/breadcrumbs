@@ -1,4 +1,4 @@
-# 🍞 Breadcrumbs
+# Breadcrumbs
 
 A smart student productivity app that auto-schedules your to-do list around your life.
 
@@ -28,11 +28,11 @@ The scheduling algorithm optimizes for three things:
 
 ## Getting Started
 
-> Setup instructions coming soon.
+You can just build from source by running `git clone git@github.com:ANewProfile/breadcrumbs`. Run the backend with `venv/bin/uvicorn main:app --reload` from within `/backend`. Run the frontend with `npm run dev` from within `/frontend`.
 
 ## Contributing
 
-This project is currently in early development. Contributions are not yet open, but feel free to open issues for bugs or feature suggestions.
+This is a one-man project from a student, so there is currently no CONTRIBUTING.md file. If you would like to contribute, please open a PR with detailed descriptions.
 
 ## License
 
