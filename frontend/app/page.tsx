@@ -79,7 +79,7 @@ export default async function Home() {
           Your tasks
         </h1>
         <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-400 mt-1">
-          Add a task, then run the scheduler to fit it into your free time.
+          Add a task, then reschedule all tasks to fit everything into your free time.
         </p>
       </div>
 

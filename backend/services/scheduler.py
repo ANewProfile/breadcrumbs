@@ -26,15 +26,17 @@ def _urgency_bucket(task: dict, today: date) -> int:
 
 
 def _sort_key(task: dict, today: date):
-    # Subject is the secondary key (after urgency) so same-subject tasks within
-    # the same urgency tier land next to each other in processing order — since
-    # assignment below is a forward-filling first-fit, adjacent-in-order tasks
-    # naturally end up packed into the same contiguous block (cognitive-load
-    # batching), without needing a separate grouping pass.
+    # Due date first, then priority — priority is the tiebreaker among
+    # similarly-urgent tasks, ahead of subject. Subject still comes after, so
+    # same-subject tasks at the same urgency *and* priority land next to each
+    # other in processing order — since assignment below is a forward-filling
+    # first-fit, adjacent-in-order tasks naturally end up packed into the same
+    # contiguous block (cognitive-load batching), without needing a separate
+    # grouping pass.
     return (
         _urgency_bucket(task, today),
-        task["subject"],
         PRIORITY_RANK.get(task.get("priority", "medium"), 1),
+        task["subject"],
         task["id"],
     )
 
@@ -112,15 +114,24 @@ def assign_tasks(
 
     def candidate_days(task):
         due_date = _task_due_date(task)
-        # Hard constraint: never place a task on a day after its due date.
-        days = [d for d in day_blocks if due_date is None or d <= due_date]
-        eve = due_date - timedelta(days=1) if due_date else None
-        # Prefer the least-loaded day so far (spreads work out instead of
-        # cramming today just because it fits), and avoid landing on the day
-        # right before the due date unless nothing else is available.
-        non_eve = sorted((d for d in days if d != eve), key=lambda d: (day_minutes.get(d, 0), d))
-        eve_days = [d for d in days if d == eve]
-        return non_eve, eve_days
+        # Hard constraint: a task is due the instant its due day starts, so it
+        # must be completed on some earlier day — never on the due date itself,
+        # unless the due date is today (already underway, so still fair game).
+        days = [
+            d for d in day_blocks
+            if due_date is None
+            or d < due_date
+            or (due_date == today and d == due_date)
+        ]
+        if due_date is None:
+            # No deadline pressure: do it as soon as reasonably possible, tied
+            # days broken by earliest date first.
+            return sorted(days, key=lambda d: (day_minutes.get(d, 0), d))
+        # A real deadline: among equally-loaded days, prefer the one closer to
+        # the due date. That leaves the nearest days (today, tomorrow, ...)
+        # open for tasks with tighter deadlines instead of reflexively using
+        # them just because they sort first.
+        return sorted(days, key=lambda d: (day_minutes.get(d, 0), -d.toordinal()))
 
     def try_days(days, task, subject, needed, enforce_soft_constraints):
         for d in days:
@@ -133,17 +144,14 @@ def assign_tasks(
     for task in tasks_sorted:
         subject = task["subject"]
         needed = round(task.get("adjusted_minutes", task["estimated_minutes"]))
-        non_eve, eve_days = candidate_days(task)
+        days = candidate_days(task)
 
         placed = (
-            try_days(non_eve, task, subject, needed, True)
+            try_days(days, task, subject, needed, True)
             # Soft constraints (subject-switch cap, continuous-work cap) are cognitive-load
             # preferences, not hard requirements — fall back to plain duration-fit so a task
             # never goes unschedulable just because the ideal slot was already claimed.
-            or try_days(non_eve, task, subject, needed, False)
-            # Only fall back to the day right before the due date as a last resort.
-            or try_days(eve_days, task, subject, needed, True)
-            or try_days(eve_days, task, subject, needed, False)
+            or try_days(days, task, subject, needed, False)
         )
         if not placed:
             unfit_ids.append(task["id"])

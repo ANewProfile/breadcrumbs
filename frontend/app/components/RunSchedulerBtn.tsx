@@ -36,8 +36,12 @@ export function RunSchedulerBtn() {
             strokeLinejoin="round"
           />
         </svg>
-        {pending ? "Scheduling…" : "Run Scheduler"}
+        {pending ? "Rescheduling…" : "Reschedule All Tasks"}
       </button>
+      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+        Re-optimizes every pending and scheduled task, including ones already
+        on your calendar that haven&apos;t happened yet.
+      </p>
       {error && (
         <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}

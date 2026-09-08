@@ -121,6 +121,43 @@ def test_due_date_urgency_beats_subject_alphabetical_order():
     assert unfit == []
 
 
+def test_priority_beats_subject_within_same_urgency():
+    # "Art" would win over "Zoology" alphabetically, but "Zoology" is
+    # high-priority and "Art" is low — priority is the tiebreaker ahead of
+    # subject, not after it.
+    tasks = [
+        make_task("art_task", "Art", 30, priority="low"),
+        make_task("zoology_task", "Zoology", 30, priority="high"),
+    ]
+    blocks = [make_block(9, 10)]  # 60 min, fits both
+    assignments, unfit = assign_tasks(tasks, blocks)
+    assert assignments["zoology_task"]["start"] == dt(9).isoformat()
+    assert assignments["art_task"]["start"] == dt(9, 30).isoformat()
+    assert unfit == []
+
+
+def test_nearer_due_task_keeps_today_while_later_due_task_uses_tomorrow():
+    # One task due tomorrow (must be done today — see the due-date exclusion
+    # tests) and one due in two days, competing for the same two days of
+    # room. The due-tomorrow task can only use today; the due-in-two-days
+    # task should be pushed to tomorrow rather than also grabbing today, even
+    # though today technically has room for both.
+    due_tomorrow = dt(0, day_offset=1).date().isoformat()
+    due_in_two_days = dt(0, day_offset=2).date().isoformat()
+    tasks = [
+        make_task("soon", "Math", 30, due_date=due_tomorrow),
+        make_task("later", "Physics", 30, due_date=due_in_two_days),
+    ]
+    blocks = [make_block(9, 11, day_offset=0), make_block(9, 11, day_offset=1)]
+    assignments, unfit = assign_tasks(tasks, blocks)
+    today = dt(9, day_offset=0).date()
+    tomorrow = dt(9, day_offset=1).date()
+    starts = {k: datetime.fromisoformat(v["start"]) for k, v in assignments.items()}
+    assert starts["soon"].date() == today
+    assert starts["later"].date() == tomorrow
+    assert unfit == []
+
+
 def test_priority_breaks_ties_within_same_urgency():
     tasks = [
         make_task("low", "Biology", 30, priority="low"),
@@ -237,11 +274,36 @@ def test_hard_due_date_cutoff_marks_task_unfit_past_due():
     assert unfit == ["late"]
 
 
-def test_eve_of_due_date_avoided_when_due_date_itself_has_room():
-    # Due in 3 days: day+2 (the eve) and day+3 (the due date) are both empty
-    # and tied on load, so a plain earliest-day tiebreak would pick the eve —
-    # the scheduler should prefer the due date itself instead.
+def test_task_never_scheduled_on_its_own_due_date():
+    # A task is due the instant its due day starts, so it can't be completed
+    # that day — only day+2 (before the day+3 due date) is a valid target,
+    # even though day+3 also has an empty block.
     due_str = dt(0, day_offset=3).date().isoformat()
+    tasks = [make_task("t", "Math", 30, due_date=due_str)]
+    blocks = [make_block(9, 11, day_offset=2), make_block(9, 11, day_offset=3)]
+    assignments, unfit = assign_tasks(tasks, blocks)
+    assert assignments["t"]["start"] == dt(9, day_offset=2).isoformat()
+    assert unfit == []
+
+
+def test_task_due_today_can_still_be_scheduled_today():
+    # Exception to the rule above: if the due date IS today, today is already
+    # underway and still the only chance to get it done.
+    today_str = dt(0).date().isoformat()
+    tasks = [make_task("t", "Math", 30, due_date=today_str)]
+    blocks = [make_block(9, 11, day_offset=0)]
+    assignments, unfit = assign_tasks(tasks, blocks)
+    assert assignments["t"]["start"] == dt(9, day_offset=0).isoformat()
+    assert unfit == []
+
+
+def test_due_dated_tasks_prefer_the_day_closer_to_the_deadline_when_tied():
+    # Due in 4 days: day+2 and day+3 are both valid (neither is the due date
+    # itself) and tied on load, so the scheduler should use the day closer to
+    # the deadline (day+3) first — leaving day+2 (nearer to now) open for
+    # whatever might need it more urgently — rather than reflexively filling
+    # the earlier day just because it sorts first.
+    due_str = dt(0, day_offset=4).date().isoformat()
     tasks = [make_task("t", "Math", 30, due_date=due_str)]
     blocks = [make_block(9, 11, day_offset=2), make_block(9, 11, day_offset=3)]
     assignments, unfit = assign_tasks(tasks, blocks)
@@ -249,8 +311,26 @@ def test_eve_of_due_date_avoided_when_due_date_itself_has_room():
     assert unfit == []
 
 
-def test_eve_of_due_date_used_as_last_resort():
-    # Same due date, but now only the eve day has any free block at all —
+def test_due_dated_tasks_still_spread_across_available_days_before_due():
+    # Same due date, two same-subject tasks: the first takes the day closer
+    # to the deadline (day+3), and rather than exceeding the continuous-work
+    # cap there, the second spreads to the other available day (day+2) —
+    # no soft-constraint relaxation needed since a whole other day is free.
+    due_str = dt(0, day_offset=4).date().isoformat()
+    tasks = [
+        make_task("a", "Math", 30, due_date=due_str),
+        make_task("b", "Math", 30, due_date=due_str),
+    ]
+    blocks = [make_block(9, 11, day_offset=2), make_block(9, 11, day_offset=3)]
+    assignments, unfit = assign_tasks(tasks, blocks, max_continuous_minutes=30)
+    starts = {k: datetime.fromisoformat(v["start"]) for k, v in assignments.items()}
+    days_used = {starts["a"].date(), starts["b"].date()}
+    assert days_used == {dt(9, day_offset=2).date(), dt(9, day_offset=3).date()}
+    assert unfit == []
+
+
+def test_only_day_before_due_date_available_is_still_used():
+    # Only the day right before the due date has any free block at all —
     # better to use it than to leave the task unschedulable.
     due_str = dt(0, day_offset=3).date().isoformat()
     tasks = [make_task("t", "Math", 30, due_date=due_str)]
