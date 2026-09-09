@@ -1,9 +1,75 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 DEFAULT_MAX_CONTINUOUS_MINUTES = 90
 DEFAULT_MAX_SUBJECTS_PER_DAY = 3
+# A task this short barely dents a day's capacity, so it's not worth spreading
+# out or holding back for a day closer to its deadline the way longer tasks
+# are — just drop it into the earliest day that has room for it.
+SHORT_TASK_MAX_MINUTES = 10
 
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+
+# Being willing to work at 6:30am doesn't mean that's preferred over 3:30pm —
+# these are soft windows within a day: tasks are tried here first and only
+# spill outside the window when it doesn't have room.
+TIME_OF_DAY_WINDOWS: dict[str, tuple[time, time]] = {
+    "morning": (time(0, 0), time(12, 0)),
+    "afternoon": (time(12, 0), time(17, 0)),
+    "evening": (time(17, 0), time(23, 59, 59)),
+}
+
+
+def _sub_block(block: dict, start: datetime, end: datetime) -> dict:
+    return {
+        "start": start,
+        "end": end,
+        "duration_min": int((end - start).total_seconds() / 60),
+        "streak_subject": None,
+        "streak_minutes": 0,
+    }
+
+
+def _split_for_window(block: dict, window_start: time, window_end: time) -> tuple[list, list]:
+    """
+    Splits one free block around a preferred time-of-day window into
+    (preferred_parts, other_parts). A block outside the window entirely comes
+    back unchanged as the sole "other" part.
+    """
+    day = block["start"].date()
+    tz = block["start"].tzinfo
+    window_lo = max(block["start"], datetime.combine(day, window_start, tzinfo=tz))
+    window_hi = min(block["end"], datetime.combine(day, window_end, tzinfo=tz))
+    if window_lo >= window_hi:
+        return [], [block]
+
+    other = []
+    if block["start"] < window_lo:
+        other.append(_sub_block(block, block["start"], window_lo))
+    preferred = [_sub_block(block, window_lo, window_hi)]
+    if window_hi < block["end"]:
+        other.append(_sub_block(block, window_hi, block["end"]))
+    return preferred, other
+
+
+def _apply_time_of_day_preference(day_blocks: dict, preferred_time_of_day: str | None) -> dict:
+    window = TIME_OF_DAY_WINDOWS.get(preferred_time_of_day or "")
+    if not window:
+        return day_blocks
+    window_start, window_end = window
+
+    reordered: dict[date, list] = {}
+    for day, blocks_for_day in day_blocks.items():
+        preferred_parts, other_parts = [], []
+        for block in blocks_for_day:
+            pref, other = _split_for_window(block, window_start, window_end)
+            preferred_parts.extend(pref)
+            other_parts.extend(other)
+        preferred_parts.sort(key=lambda b: b["start"])
+        other_parts.sort(key=lambda b: b["start"])
+        # Try the preferred window first; only spill into the rest of the day
+        # once it's full.
+        reordered[day] = preferred_parts + other_parts
+    return reordered
 
 
 def _urgency_bucket(task: dict, today: date) -> int:
@@ -26,16 +92,20 @@ def _urgency_bucket(task: dict, today: date) -> int:
 
 
 def _sort_key(task: dict, today: date):
-    # Due date first, then priority — priority is the tiebreaker among
-    # similarly-urgent tasks, ahead of subject. Subject still comes after, so
-    # same-subject tasks at the same urgency *and* priority land next to each
-    # other in processing order — since assignment below is a forward-filling
-    # first-fit, adjacent-in-order tasks naturally end up packed into the same
-    # contiguous block (cognitive-load batching), without needing a separate
-    # grouping pass.
+    # Due date first, then priority, then how short the task is — each only a
+    # tiebreaker among tasks tied on everything before it, never overriding
+    # it. Shorter tasks go next so they claim small leftover gaps before a
+    # longer task in the same urgency/priority tier can crowd them out or
+    # force them onto a different day. Subject comes after that, so
+    # same-subject tasks at the same urgency, priority, and length land next
+    # to each other in processing order — since assignment below is a
+    # forward-filling first-fit, adjacent-in-order tasks naturally end up
+    # packed into the same contiguous block (cognitive-load batching),
+    # without needing a separate grouping pass.
     return (
         _urgency_bucket(task, today),
         PRIORITY_RANK.get(task.get("priority", "medium"), 1),
+        round(task.get("adjusted_minutes", task["estimated_minutes"])),
         task["subject"],
         task["id"],
     )
@@ -55,6 +125,7 @@ def assign_tasks(
     max_subjects_per_day: int = DEFAULT_MAX_SUBJECTS_PER_DAY,
     break_between_tasks_minutes: int = 0,
     break_between_subjects_minutes: int = 0,
+    preferred_time_of_day: str | None = None,
 ) -> tuple[dict, list]:
     today = free_blocks[0]["start"].date() if free_blocks else date.today()
     tasks_sorted = sorted(tasks, key=lambda t: _sort_key(t, today))
@@ -63,6 +134,7 @@ def assign_tasks(
     day_blocks: dict[date, list] = {}
     for b in blocks:
         day_blocks.setdefault(b["start"].date(), []).append(b)
+    day_blocks = _apply_time_of_day_preference(day_blocks, preferred_time_of_day)
 
     day_subjects: dict[date, set] = {}
     day_minutes: dict[date, int] = {}
@@ -112,7 +184,7 @@ def assign_tasks(
         block["start"] = end_dt
         block["duration_min"] -= needed
 
-    def candidate_days(task):
+    def candidate_days(task, needed):
         due_date = _task_due_date(task)
         # Hard constraint: a task is due the instant its due day starts, so it
         # must be completed on some earlier day — never on the due date itself,
@@ -123,6 +195,8 @@ def assign_tasks(
             or d < due_date
             or (due_date == today and d == due_date)
         ]
+        if needed <= SHORT_TASK_MAX_MINUTES:
+            return sorted(days)
         if due_date is None:
             # No deadline pressure: do it as soon as reasonably possible, tied
             # days broken by earliest date first.
@@ -144,7 +218,7 @@ def assign_tasks(
     for task in tasks_sorted:
         subject = task["subject"]
         needed = round(task.get("adjusted_minutes", task["estimated_minutes"]))
-        days = candidate_days(task)
+        days = candidate_days(task, needed)
 
         placed = (
             try_days(days, task, subject, needed, True)

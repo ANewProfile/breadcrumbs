@@ -22,6 +22,7 @@ import {
   type Priority,
   type Settings,
   type TimeTrackingMode,
+  type PreferredTimeOfDay,
 } from "@/lib/api";
 
 export async function createTaskAction(
@@ -145,6 +146,7 @@ export async function updateSettingsAction(
       formData.get("break_between_subjects_minutes") as string,
       10
     ),
+    preferred_time_of_day: formData.get("preferred_time_of_day") as PreferredTimeOfDay,
   };
   try {
     await updateSettings(data);

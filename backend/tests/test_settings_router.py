@@ -50,3 +50,14 @@ def test_valid_time_tracking_mode_accepted(mode):
 def test_invalid_time_tracking_mode_rejected():
     with pytest.raises(ValidationError):
         SettingsUpdate(time_tracking_mode="stopwatch")
+
+
+@pytest.mark.parametrize("preference", ["no_preference", "morning", "afternoon", "evening"])
+def test_valid_preferred_time_of_day_accepted(preference):
+    body = SettingsUpdate(preferred_time_of_day=preference)
+    assert body.preferred_time_of_day == preference
+
+
+def test_invalid_preferred_time_of_day_rejected():
+    with pytest.raises(ValidationError):
+        SettingsUpdate(preferred_time_of_day="whenever")

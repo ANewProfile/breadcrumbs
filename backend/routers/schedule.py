@@ -183,6 +183,7 @@ def run_schedule(user: dict = Depends(get_current_user)):
         max_subjects_per_day=settings["max_subjects_per_day"],
         break_between_tasks_minutes=settings["break_between_tasks_minutes"],
         break_between_subjects_minutes=settings["break_between_subjects_minutes"],
+        preferred_time_of_day=settings["preferred_time_of_day"],
     )
 
     task_lookup = {t["id"]: t for t in schedulable_tasks}
@@ -241,6 +242,7 @@ def reschedule_missed(user: dict = Depends(get_current_user)):
         max_subjects_per_day=settings["max_subjects_per_day"],
         break_between_tasks_minutes=settings["break_between_tasks_minutes"],
         break_between_subjects_minutes=settings["break_between_subjects_minutes"],
+        preferred_time_of_day=settings["preferred_time_of_day"],
     )
 
     task_lookup = {t["id"]: t for t in missed_tasks}

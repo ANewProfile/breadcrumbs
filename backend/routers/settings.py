@@ -22,6 +22,7 @@ class SettingsUpdate(BaseModel):
     time_tracking_mode: Literal["manual", "automatic"] | None = None
     break_between_tasks_minutes: int | None = None
     break_between_subjects_minutes: int | None = None
+    preferred_time_of_day: Literal["no_preference", "morning", "afternoon", "evening"] | None = None
 
     @field_validator("day_start", "day_end")
     @classmethod

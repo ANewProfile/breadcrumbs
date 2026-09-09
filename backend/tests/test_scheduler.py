@@ -136,6 +136,42 @@ def test_priority_beats_subject_within_same_urgency():
     assert unfit == []
 
 
+def test_shorter_task_beats_subject_within_same_urgency_and_priority():
+    # "Art" would win over "Zoology" alphabetically, and both are the same
+    # priority, but "Zoology" is the shorter task — length is the tiebreaker
+    # ahead of subject, right after priority.
+    tasks = [
+        make_task("art_task", "Art", 30),
+        make_task("zoology_task", "Zoology", 10),
+    ]
+    blocks = [make_block(9, 10)]  # 60 min, fits both
+    assignments, unfit = assign_tasks(tasks, blocks)
+    assert assignments["zoology_task"]["start"] == dt(9).isoformat()
+    assert assignments["art_task"]["start"] == dt(9, 10).isoformat()
+    assert unfit == []
+
+
+def test_short_task_fills_todays_leftover_room_instead_of_an_emptier_day():
+    # "filler" is due tomorrow, so it's processed first and forced onto today
+    # (see the due-date exclusion tests), using 50 of today's 120 minutes and
+    # leaving 70 free. Tomorrow stays completely empty. A quick 10-minute
+    # task due later should still just drop into today's leftover room
+    # rather than jumping to the emptier day the way a longer task would.
+    due_tomorrow = dt(0, day_offset=1).date().isoformat()
+    due_later = dt(0, day_offset=4).date().isoformat()
+    tasks = [
+        make_task("filler", "Math", 50, due_date=due_tomorrow),
+        make_task("quick", "Reading", 10, due_date=due_later),
+    ]
+    blocks = [make_block(9, 11, day_offset=0), make_block(9, 11, day_offset=1)]
+    assignments, unfit = assign_tasks(tasks, blocks)
+    today = dt(9, day_offset=0).date()
+    starts = {k: datetime.fromisoformat(v["start"]) for k, v in assignments.items()}
+    assert starts["filler"].date() == today
+    assert starts["quick"].date() == today
+    assert unfit == []
+
+
 def test_nearer_due_task_keeps_today_while_later_due_task_uses_tomorrow():
     # One task due tomorrow (must be done today — see the due-date exclusion
     # tests) and one due in two days, competing for the same two days of
@@ -294,6 +330,43 @@ def test_task_due_today_can_still_be_scheduled_today():
     blocks = [make_block(9, 11, day_offset=0)]
     assignments, unfit = assign_tasks(tasks, blocks)
     assert assignments["t"]["start"] == dt(9, day_offset=0).isoformat()
+    assert unfit == []
+
+
+def test_preferred_time_of_day_places_task_within_that_window():
+    # Being willing to work at 8am doesn't mean it's preferred over 12pm —
+    # with the whole day free, an "afternoon" preference should land the
+    # task at the start of the afternoon window, not the start of the day.
+    tasks = [make_task("t", "Math", 30)]
+    blocks = [make_block(8, 22)]
+    assignments, unfit = assign_tasks(tasks, blocks, preferred_time_of_day="afternoon")
+    assert assignments["t"]["start"] == dt(12).isoformat()
+    assert unfit == []
+
+
+def test_preferred_time_of_day_spills_into_rest_of_day_once_window_is_full():
+    # Afternoon (12:00-17:00) only has 300 minutes of room. The first
+    # same-sized task fills most of it; the second can't fit what's left of
+    # the window, so it should spill into the morning (the next-earliest
+    # remaining time) rather than going unfit or jumping to another day.
+    tasks = [
+        make_task("a", "Math", 200),
+        make_task("b", "Math", 200),
+    ]
+    blocks = [make_block(8, 22)]
+    assignments, unfit = assign_tasks(
+        tasks, blocks, preferred_time_of_day="afternoon", max_continuous_minutes=999
+    )
+    assert assignments["a"]["start"] == dt(12).isoformat()
+    assert assignments["b"]["start"] == dt(8).isoformat()
+    assert unfit == []
+
+
+def test_no_time_of_day_preference_keeps_default_earliest_first_behavior():
+    tasks = [make_task("t", "Math", 30)]
+    blocks = [make_block(8, 22)]
+    assignments, unfit = assign_tasks(tasks, blocks)
+    assert assignments["t"]["start"] == dt(8).isoformat()
     assert unfit == []
 
 

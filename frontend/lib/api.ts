@@ -165,6 +165,8 @@ export async function rescheduleMissed(): Promise<unknown> {
 
 export type TimeTrackingMode = "manual" | "automatic";
 
+export type PreferredTimeOfDay = "no_preference" | "morning" | "afternoon" | "evening";
+
 export type Settings = {
   day_start: string;
   day_end: string;
@@ -175,6 +177,7 @@ export type Settings = {
   time_tracking_mode: TimeTrackingMode;
   break_between_tasks_minutes: number;
   break_between_subjects_minutes: number;
+  preferred_time_of_day: PreferredTimeOfDay;
 };
 
 export async function fetchSettings(): Promise<Settings> {

@@ -8,6 +8,7 @@ DEFAULT_SETTINGS = {
     "time_tracking_mode": "manual",
     "break_between_tasks_minutes": 0,
     "break_between_subjects_minutes": 0,
+    "preferred_time_of_day": "no_preference",
 }
 
 

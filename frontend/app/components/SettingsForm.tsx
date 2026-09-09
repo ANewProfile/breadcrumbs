@@ -171,6 +171,23 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         </select>
       </label>
 
+      <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <span className="inline-flex items-center gap-1">
+          Preferred time of day
+          <InfoTooltip text="Being willing to work at 6:30am doesn't mean you'd rather do it then than at 3:30pm. The scheduler will try to fit tasks into this window first, and only spill into the rest of your study window when it's full." />
+        </span>
+        <select
+          name="preferred_time_of_day"
+          defaultValue={settings.preferred_time_of_day}
+          className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500"
+        >
+          <option value="no_preference">No preference</option>
+          <option value="morning">Morning (before 12pm)</option>
+          <option value="afternoon">Afternoon (12pm–5pm)</option>
+          <option value="evening">Evening (after 5pm)</option>
+        </select>
+      </label>
+
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
