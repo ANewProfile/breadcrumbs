@@ -16,7 +16,7 @@ export function RunSchedulerBtn() {
   }
 
   return (
-    <div className="mb-6 sm:mb-8">
+    <div className="mb-6 sm:mb-8 mt-4">
       <button
         onClick={handleClick}
         disabled={pending}
