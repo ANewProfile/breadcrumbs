@@ -12,6 +12,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/calendar.events",
+    # Lets us enumerate the calendars a user has added to their Google Calendar
+    # (including ones shared with them or subscribed to, not just their own),
+    # so they can choose which ones count as busy time for scheduling.
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 ]
 
 CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID")

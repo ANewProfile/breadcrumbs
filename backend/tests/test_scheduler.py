@@ -362,6 +362,20 @@ def test_preferred_time_of_day_spills_into_rest_of_day_once_window_is_full():
     assert unfit == []
 
 
+def test_preferred_time_of_day_spillover_prefers_slot_nearest_window_over_earliest():
+    # The afternoon window (12:00-17:00) has no room at all today — only a
+    # pre-dawn block and a late-evening block remain. The evening block is
+    # only an hour past the window; the early block is hours before it. A
+    # plain "earliest first" spillover would wrongly pick the early block
+    # just because it comes first in the day — proximity to the preferred
+    # window should win instead.
+    tasks = [make_task("t", "Math", 30)]
+    blocks = [make_block(6, 7), make_block(18, 19)]
+    assignments, unfit = assign_tasks(tasks, blocks, preferred_time_of_day="afternoon")
+    assert assignments["t"]["start"] == dt(18).isoformat()
+    assert unfit == []
+
+
 def test_no_time_of_day_preference_keeps_default_earliest_first_behavior():
     tasks = [make_task("t", "Math", 30)]
     blocks = [make_block(8, 22)]

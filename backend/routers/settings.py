@@ -23,6 +23,14 @@ class SettingsUpdate(BaseModel):
     break_between_tasks_minutes: int | None = None
     break_between_subjects_minutes: int | None = None
     preferred_time_of_day: Literal["no_preference", "morning", "afternoon", "evening"] | None = None
+    selected_calendar_ids: list[str] | None = None
+
+    @field_validator("selected_calendar_ids")
+    @classmethod
+    def validate_selected_calendar_ids(cls, v):
+        if v is not None and len(v) == 0:
+            raise ValueError("must include at least one calendar")
+        return v
 
     @field_validator("day_start", "day_end")
     @classmethod

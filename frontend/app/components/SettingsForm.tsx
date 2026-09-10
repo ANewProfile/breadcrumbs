@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
-import type { Settings } from "@/lib/api";
+import type { Settings, Calendar } from "@/lib/api";
 import { updateSettingsAction } from "@/app/actions";
 import { InfoTooltip } from "./InfoTooltip";
 
@@ -18,7 +18,13 @@ const COMMON_TIMEZONES = [
   "Australia/Sydney",
 ];
 
-export function SettingsForm({ settings }: { settings: Settings }) {
+export function SettingsForm({
+  settings,
+  calendars,
+}: {
+  settings: Settings;
+  calendars: Calendar[];
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -187,6 +193,36 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           <option value="evening">Evening (after 5pm)</option>
         </select>
       </label>
+
+      {calendars.length > 0 && (
+        <fieldset className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <input type="hidden" name="has_calendar_options" value="1" />
+          <legend className="inline-flex items-center gap-1 px-0">
+            Calendars to treat as busy time
+            <InfoTooltip text="Includes calendars shared with you and ones you've subscribed to, not just your own. Unchecked calendars are ignored when the scheduler looks for free time." />
+          </legend>
+          <div className="flex flex-col gap-1.5">
+            {calendars.map((cal) => (
+              <label
+                key={cal.id}
+                className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"
+              >
+                <input
+                  type="checkbox"
+                  name="selected_calendar_ids"
+                  value={cal.id}
+                  defaultChecked={settings.selected_calendar_ids.includes(cal.id)}
+                  className="rounded border-zinc-300 dark:border-zinc-600 text-indigo-600 focus:ring-indigo-400"
+                />
+                {cal.summary}
+                {cal.primary && (
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">(primary)</span>
+                )}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <button

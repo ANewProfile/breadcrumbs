@@ -178,7 +178,20 @@ export type Settings = {
   break_between_tasks_minutes: number;
   break_between_subjects_minutes: number;
   preferred_time_of_day: PreferredTimeOfDay;
+  selected_calendar_ids: string[];
 };
+
+export type Calendar = {
+  id: string;
+  summary: string;
+  primary: boolean;
+};
+
+export async function fetchCalendars(): Promise<Calendar[]> {
+  const res = await apiFetch("/calendars");
+  if (!res.ok) return [];
+  return res.json();
+}
 
 export async function fetchSettings(): Promise<Settings> {
   const res = await apiFetch("/settings");

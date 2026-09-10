@@ -51,6 +51,22 @@ def _split_for_window(block: dict, window_start: time, window_end: time) -> tupl
     return preferred, other
 
 
+def _distance_to_window(block: dict, window_lo: datetime, window_hi: datetime) -> timedelta:
+    """
+    How far a spillover block sits from the preferred window — zero if
+    (somehow) overlapping, otherwise the gap to whichever edge it's on.
+    Ordering spillover by this instead of raw start time means a slot right
+    next to the preferred window (e.g. the evening, right after an afternoon
+    preference) gets tried before a slot that's merely earlier in the day
+    (e.g. before dawn) but much further from what the user actually asked for.
+    """
+    if block["end"] <= window_lo:
+        return window_lo - block["end"]
+    if block["start"] >= window_hi:
+        return block["start"] - window_hi
+    return timedelta(0)
+
+
 def _apply_time_of_day_preference(day_blocks: dict, preferred_time_of_day: str | None) -> dict:
     window = TIME_OF_DAY_WINDOWS.get(preferred_time_of_day or "")
     if not window:
@@ -59,15 +75,20 @@ def _apply_time_of_day_preference(day_blocks: dict, preferred_time_of_day: str |
 
     reordered: dict[date, list] = {}
     for day, blocks_for_day in day_blocks.items():
+        tz = blocks_for_day[0]["start"].tzinfo
+        window_lo = datetime.combine(day, window_start, tzinfo=tz)
+        window_hi = datetime.combine(day, window_end, tzinfo=tz)
+
         preferred_parts, other_parts = [], []
         for block in blocks_for_day:
             pref, other = _split_for_window(block, window_start, window_end)
             preferred_parts.extend(pref)
             other_parts.extend(other)
         preferred_parts.sort(key=lambda b: b["start"])
-        other_parts.sort(key=lambda b: b["start"])
         # Try the preferred window first; only spill into the rest of the day
-        # once it's full.
+        # once it's full — and when it does spill, try the slot closest to
+        # the window first rather than whichever happens to be earliest.
+        other_parts.sort(key=lambda b: (_distance_to_window(b, window_lo, window_hi), b["start"]))
         reordered[day] = preferred_parts + other_parts
     return reordered
 

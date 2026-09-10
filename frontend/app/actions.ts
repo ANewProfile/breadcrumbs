@@ -148,6 +148,13 @@ export async function updateSettingsAction(
     ),
     preferred_time_of_day: formData.get("preferred_time_of_day") as PreferredTimeOfDay,
   };
+  // The calendar checkboxes only render once the user's calendar list has
+  // loaded — this hidden marker tells us the section was actually shown, so
+  // we can tell "no calendars section on this form" apart from "the user
+  // unchecked every box" (which should error, not silently no-op).
+  if (formData.get("has_calendar_options")) {
+    data.selected_calendar_ids = formData.getAll("selected_calendar_ids") as string[];
+  }
   try {
     await updateSettings(data);
     revalidatePath("/settings");

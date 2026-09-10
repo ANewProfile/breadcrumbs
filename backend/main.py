@@ -3,7 +3,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from rate_limit import default_rate_limit
-from routers import tasks, schedule, settings, auth, account, no_go_zones
+from routers import tasks, schedule, settings, auth, account, no_go_zones, calendars
 
 # Applied to every route below, so no single session/IP can hammer the API or
 # database regardless of which endpoint they hit — see rate_limit.py.
@@ -25,4 +25,5 @@ app.include_router(settings.router, prefix="/settings")
 app.include_router(auth.router, prefix="/auth")
 app.include_router(account.router, prefix="/account")
 app.include_router(no_go_zones.router, prefix="/no-go-zones")
+app.include_router(calendars.router, prefix="/calendars")
 

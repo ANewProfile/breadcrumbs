@@ -51,7 +51,11 @@ def _google_state(user: dict, is_dev_user: bool, settings: dict):
             status_code=400,
             detail="Please reconnect your Google Calendar in Settings before running the scheduler.",
         )
-    events = get_events(creds, lookahead_days=settings["lookahead_days"])
+    events = get_events(
+        creds,
+        lookahead_days=settings["lookahead_days"],
+        calendar_ids=settings.get("selected_calendar_ids") or ["primary"],
+    )
     return creds, events
 
 

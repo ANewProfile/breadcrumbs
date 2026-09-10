@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { fetchSettings, fetchCurrentUser, BASE } from "@/lib/api";
+import { fetchSettings, fetchCalendars, fetchCurrentUser, BASE } from "@/lib/api";
 import { SettingsForm } from "@/app/components/SettingsForm";
 import { AccountActions } from "@/app/components/AccountActions";
 import { Breadcrumbs } from "@/app/components/Breadcrumbs";
@@ -20,6 +20,7 @@ export default async function SettingsPage() {
   }
 
   const settings = await fetchSettings();
+  const calendars = await fetchCalendars();
 
   return (
     <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -31,7 +32,7 @@ export default async function SettingsPage() {
         Controls how the scheduler picks free time and paces your workload.
       </p>
 
-      <SettingsForm settings={settings} />
+      <SettingsForm settings={settings} calendars={calendars} />
       <AccountActions
         googleConnected={user.google_connected}
         googleLoginUrl={`${BASE}/auth/google/login`}

@@ -9,6 +9,9 @@ DEFAULT_SETTINGS = {
     "break_between_tasks_minutes": 0,
     "break_between_subjects_minutes": 0,
     "preferred_time_of_day": "no_preference",
+    # Which of the user's Google calendars count as busy time when scheduling.
+    # Defaults to just their own primary calendar, matching prior behavior.
+    "selected_calendar_ids": ["primary"],
 }
 
 
