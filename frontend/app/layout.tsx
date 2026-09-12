@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { CookieConsent } from "./components/CookieConsent";
@@ -45,10 +44,11 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950">
-        {/* beforeInteractive: runs before hydration so the stored/OS theme applies with no flash of the other theme. */}
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
+        {/* Raw (not next/script) so it's a literal blocking <script> tag the
+            browser executes synchronously while parsing, before any Next.js
+            runtime chunk loads — avoiding a race where the page paints (or
+            hydrates) in light mode before the stored theme is applied. */}
+        <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('breadcrumbs_theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`,
           }}
