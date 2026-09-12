@@ -222,13 +222,11 @@ export function TaskCard({
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
               ~{task.estimated_minutes} min
             </span>
-            {task.priority !== "medium" && (
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}
-              >
-                {task.priority}
-              </span>
-            )}
+            <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}
+            >
+            {task.priority}
+            </span>
             {task.due_date && (
               <span
                 className={`text-xs font-medium ${
