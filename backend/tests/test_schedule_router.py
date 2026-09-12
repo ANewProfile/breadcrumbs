@@ -8,7 +8,7 @@ USER = {"_id": ObjectId()}
 
 BASE_SETTINGS = {
     "lookahead_days": 7, "day_start": "08:00", "day_end": "22:00", "timezone": "UTC",
-    "max_continuous_minutes": 90, "max_subjects_per_day": 3,
+    "max_continuous_minutes": 90, "max_subjects_per_day": 3, "max_daily_minutes": 240,
     "break_between_tasks_minutes": 0, "break_between_subjects_minutes": 0,
     "preferred_time_of_day": "no_preference",
 }

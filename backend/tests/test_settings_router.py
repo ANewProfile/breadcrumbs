@@ -10,6 +10,7 @@ def test_valid_settings_pass_validation():
         timezone="America/Los_Angeles",
         max_continuous_minutes=60,
         max_subjects_per_day=2,
+        max_daily_minutes=180,
         lookahead_days=14,
     )
     assert body.day_start == "09:00"
@@ -33,7 +34,7 @@ def test_invalid_timezone_rejected():
         SettingsUpdate(timezone="Not/A_Real_Zone")
 
 
-@pytest.mark.parametrize("field", ["max_continuous_minutes", "max_subjects_per_day", "lookahead_days"])
+@pytest.mark.parametrize("field", ["max_continuous_minutes", "max_subjects_per_day", "max_daily_minutes", "lookahead_days"])
 def test_non_positive_numbers_rejected(field):
     with pytest.raises(ValidationError):
         SettingsUpdate(**{field: 0})

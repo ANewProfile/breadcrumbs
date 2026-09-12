@@ -86,7 +86,7 @@ export function SettingsForm({
         </datalist>
       </label>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1">
             Max continuous minutes per subject
@@ -111,6 +111,20 @@ export function SettingsForm({
             type="number"
             min="1"
             defaultValue={settings.max_subjects_per_day}
+            required
+            className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="inline-flex items-center gap-1">
+            Max productive minutes per day
+            <InfoTooltip text="The scheduler packs each day toward this limit — getting tasks done as soon as possible — before it ever spills work onto a later day." />
+          </span>
+          <input
+            name="max_daily_minutes"
+            type="number"
+            min="1"
+            defaultValue={settings.max_daily_minutes}
             required
             className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500"
           />

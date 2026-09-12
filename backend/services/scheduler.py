@@ -2,10 +2,11 @@ from datetime import date, datetime, time, timedelta
 
 DEFAULT_MAX_CONTINUOUS_MINUTES = 90
 DEFAULT_MAX_SUBJECTS_PER_DAY = 3
-# A task this short barely dents a day's capacity, so it's not worth spreading
-# out or holding back for a day closer to its deadline the way longer tasks
-# are — just drop it into the earliest day that has room for it.
-SHORT_TASK_MAX_MINUTES = 10
+# How much total task time the scheduler will try to pack into a single day
+# before spilling to the next one. This is the lever for "get things done as
+# soon as possible without overloading the day" — days fill up toward this
+# limit before a later day is touched at all.
+DEFAULT_MAX_DAILY_MINUTES = 240
 
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 
@@ -95,8 +96,10 @@ def _apply_time_of_day_preference(day_blocks: dict, preferred_time_of_day: str |
 
 def _urgency_bucket(task: dict, today: date) -> int:
     """
-    Lower = more urgent. Due date drives this, not priority — a deadline is a
-    hard constraint, priority is only a tiebreaker among similarly-urgent tasks.
+    Lower = more urgent. This only breaks ties among tasks of the same
+    priority (see _sort_key) — it does not override priority. The due date's
+    real teeth are elsewhere: candidate_days() refuses to place a task on or
+    after its own due day no matter how it's sorted here.
     """
     due = task.get("due_date")
     if not due:
@@ -113,19 +116,22 @@ def _urgency_bucket(task: dict, today: date) -> int:
 
 
 def _sort_key(task: dict, today: date):
-    # Due date first, then priority, then how short the task is — each only a
-    # tiebreaker among tasks tied on everything before it, never overriding
-    # it. Shorter tasks go next so they claim small leftover gaps before a
-    # longer task in the same urgency/priority tier can crowd them out or
-    # force them onto a different day. Subject comes after that, so
-    # same-subject tasks at the same urgency, priority, and length land next
-    # to each other in processing order — since assignment below is a
-    # forward-filling first-fit, adjacent-in-order tasks naturally end up
-    # packed into the same contiguous block (cognitive-load batching),
-    # without needing a separate grouping pass.
+    # Priority first: a high-priority task claims slots ahead of a
+    # lower-priority one even if the lower-priority task's due date is
+    # sooner. Due date only breaks ties within the same priority tier — it
+    # never overrides priority, though it still hard-blocks a task from
+    # landing on or after its own due day (see candidate_days) regardless of
+    # this ordering. How short the task is comes next, so shorter tasks claim
+    # small leftover gaps before a longer task in the same priority/urgency
+    # tier can crowd them out or force them onto a different day. Subject
+    # comes after that, so same-subject tasks at the same priority, urgency,
+    # and length land next to each other in processing order — since
+    # assignment below is a forward-filling first-fit, adjacent-in-order
+    # tasks naturally end up packed into the same contiguous block
+    # (cognitive-load batching), without needing a separate grouping pass.
     return (
-        _urgency_bucket(task, today),
         PRIORITY_RANK.get(task.get("priority", "medium"), 1),
+        _urgency_bucket(task, today),
         round(task.get("adjusted_minutes", task["estimated_minutes"])),
         task["subject"],
         task["id"],
@@ -144,6 +150,7 @@ def assign_tasks(
     free_blocks: list,
     max_continuous_minutes: int = DEFAULT_MAX_CONTINUOUS_MINUTES,
     max_subjects_per_day: int = DEFAULT_MAX_SUBJECTS_PER_DAY,
+    max_daily_minutes: int = DEFAULT_MAX_DAILY_MINUTES,
     break_between_tasks_minutes: int = 0,
     break_between_subjects_minutes: int = 0,
     preferred_time_of_day: str | None = None,
@@ -178,6 +185,8 @@ def assign_tasks(
         day = block["start"].date()
         used_today = day_subjects.get(day, set())
         if subject not in used_today and len(used_today) >= max_subjects_per_day:
+            return False
+        if day_minutes.get(day, 0) + needed > max_daily_minutes:
             return False
         if block["streak_subject"] == subject and block["streak_minutes"] + needed > max_continuous_minutes:
             return False
@@ -216,17 +225,13 @@ def assign_tasks(
             or d < due_date
             or (due_date == today and d == due_date)
         ]
-        if needed <= SHORT_TASK_MAX_MINUTES:
-            return sorted(days)
-        if due_date is None:
-            # No deadline pressure: do it as soon as reasonably possible, tied
-            # days broken by earliest date first.
-            return sorted(days, key=lambda d: (day_minutes.get(d, 0), d))
-        # A real deadline: among equally-loaded days, prefer the one closer to
-        # the due date. That leaves the nearest days (today, tomorrow, ...)
-        # open for tasks with tighter deadlines instead of reflexively using
-        # them just because they sort first.
-        return sorted(days, key=lambda d: (day_minutes.get(d, 0), -d.toordinal()))
+        # Always prefer the earliest eligible day: get things done as soon as
+        # possible rather than holding a day back for a task whose deadline
+        # happens to be further out. A day isn't skipped just because a later
+        # due date exists — it's skipped only once max_daily_minutes (a soft
+        # constraint enforced in can_place) says it's full, at which point
+        # this ordering naturally spills onto the next earliest day.
+        return sorted(days)
 
     def try_days(days, task, subject, needed, enforce_soft_constraints):
         for d in days:
@@ -243,9 +248,10 @@ def assign_tasks(
 
         placed = (
             try_days(days, task, subject, needed, True)
-            # Soft constraints (subject-switch cap, continuous-work cap) are cognitive-load
-            # preferences, not hard requirements — fall back to plain duration-fit so a task
-            # never goes unschedulable just because the ideal slot was already claimed.
+            # Soft constraints (subject-switch cap, daily-minutes cap, continuous-work cap)
+            # are cognitive-load/workload preferences, not hard requirements — fall back to
+            # plain duration-fit so a task never goes unschedulable just because the ideal
+            # slot was already claimed.
             or try_days(days, task, subject, needed, False)
         )
         if not placed:

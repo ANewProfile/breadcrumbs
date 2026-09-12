@@ -4,6 +4,7 @@ DEFAULT_SETTINGS = {
     "timezone": "America/New_York",
     "max_continuous_minutes": 90,
     "max_subjects_per_day": 3,
+    "max_daily_minutes": 240,
     "lookahead_days": 7,
     "time_tracking_mode": "manual",
     "break_between_tasks_minutes": 0,

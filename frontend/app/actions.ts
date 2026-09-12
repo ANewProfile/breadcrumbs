@@ -136,6 +136,10 @@ export async function updateSettingsAction(
       formData.get("max_subjects_per_day") as string,
       10
     ),
+    max_daily_minutes: parseInt(
+      formData.get("max_daily_minutes") as string,
+      10
+    ),
     lookahead_days: parseInt(formData.get("lookahead_days") as string, 10),
     time_tracking_mode: formData.get("time_tracking_mode") as TimeTrackingMode,
     break_between_tasks_minutes: parseInt(

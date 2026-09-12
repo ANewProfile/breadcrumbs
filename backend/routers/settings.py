@@ -18,6 +18,7 @@ class SettingsUpdate(BaseModel):
     timezone: str | None = None
     max_continuous_minutes: int | None = None
     max_subjects_per_day: int | None = None
+    max_daily_minutes: int | None = None
     lookahead_days: int | None = None
     time_tracking_mode: Literal["manual", "automatic"] | None = None
     break_between_tasks_minutes: int | None = None
@@ -49,7 +50,7 @@ class SettingsUpdate(BaseModel):
                 raise ValueError(f"unknown IANA timezone: {v}")
         return v
 
-    @field_validator("max_continuous_minutes", "max_subjects_per_day", "lookahead_days")
+    @field_validator("max_continuous_minutes", "max_subjects_per_day", "max_daily_minutes", "lookahead_days")
     @classmethod
     def validate_positive(cls, v):
         if v is not None and v <= 0:

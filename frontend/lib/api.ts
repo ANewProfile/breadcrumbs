@@ -173,6 +173,7 @@ export type Settings = {
   timezone: string;
   max_continuous_minutes: number;
   max_subjects_per_day: number;
+  max_daily_minutes: number;
   lookahead_days: number;
   time_tracking_mode: TimeTrackingMode;
   break_between_tasks_minutes: number;
