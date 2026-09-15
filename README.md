@@ -27,11 +27,17 @@ The scheduling algorithm optimizes for three things:
 
 ## Getting Started
 
-You can just build from source by running `git clone git@github.com:ANewProfile/breadcrumbs`. Run the backend with `venv/bin/uvicorn main:app --reload` from within `/backend`. Run the frontend with `npm run dev` from within `/frontend`.
+The website is available at [https://usebreadcrumbs.app](https://usebreadcrumbs.app). There is currently no CONTRIBUTING.md file, see the `Contributing` section below for help.
+
+You can simply login with Google and start adding tasks! The app works best when you add consistent subject lines and time how long your tasks take either with the built-in timer or with your own system.
+
+Enjoy!
 
 ## Contributing
 
-This is a one-man project from a student, so there is currently no CONTRIBUTING.md file. If you would like to contribute, please open a PR with detailed descriptions.
+This is a one-man project from a student, so there is currently no CONTRIBUTING.md file. If you would like to contribute, please open a PR with detailed descriptions. In addition, feel free to request features by opening Issues!
+
+For development, you can clone the repo (`git clone git@github.com:ANewProfile/breadcrumbs`) and build from source. Run the backend with `venv/bin/uvicorn main:app --reload` from within `/backend`. Run the frontend with `npm run dev` from within `/frontend`. There is a built-in dev mode (which doesn't use the Google Calendar API and bypasses login) for running on localhost. Cloning to a local workspace will exclude important secrets and keys, so there will be no database or Google Login functionality.
 
 ## License
 
