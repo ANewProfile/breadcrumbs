@@ -14,3 +14,5 @@ frontend/CLAUDE.md
 frontend/.DS_Store
 handoff.md
 node_modules/*
+package-lock.json
+fake-lock.json
