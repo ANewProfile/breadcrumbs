@@ -12,9 +12,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/calendar.events",
-    # Lets us enumerate the calendars a user has added to their Google Calendar
-    # (including ones shared with them or subscribed to, not just their own),
-    # so they can choose which ones count as busy time for scheduling.
     "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 ]
 
@@ -42,8 +39,7 @@ def _flow(code_verifier: str | None = None) -> Flow:
 
 def build_authorization_url(state: str) -> tuple[str, str]:
     flow = _flow()
-    # access_type=offline -> issue a refresh_token; prompt=consent -> issue one
-    # every time (Google otherwise only grants it on a user's very first consent).
+    # access_type=offline --> issue a refresh_token; prompt=consent --> issue one every time (Google otherwise only grants it on a user's very first consent).
     url, _ = flow.authorization_url(
         access_type="offline",
         prompt="consent",
@@ -83,8 +79,7 @@ def credentials_to_dict(credentials: Credentials) -> dict:
 def revoke_credentials(credentials: Credentials) -> None:
     """
     Tells Google to revoke this grant, so Breadcrumbs also disappears from the
-    user's "third-party apps with account access" list — not just forgotten
-    locally. Best-effort: a failed revoke shouldn't block a local disconnect.
+    user's "third-party apps with account access" list.
     """
     token = credentials.token or credentials.refresh_token
     if not token:

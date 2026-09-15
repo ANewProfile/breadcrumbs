@@ -19,7 +19,6 @@ def dt(date, hour, minute=0):
 
 def test_past_blocks_excluded():
     today = datetime.now(TZ).date()
-    # Single event earlier today that already passed; free block before it is in the past.
     event_start = dt(today, 9)
     event_end = dt(today, 10)
     now = dt(today, 14)  # simulate "it is now 14:00"
@@ -37,7 +36,6 @@ def test_past_blocks_excluded():
 def test_future_blocks_included():
     today = datetime.now(TZ).date()
     tomorrow = today + timedelta(days=1)
-    # Event tomorrow morning; free block after it should be included.
     event_start = dt(tomorrow, 9)
     event_end = dt(tomorrow, 10)
     now = dt(today, 14)
@@ -137,7 +135,6 @@ def test_one_off_no_go_zone_only_applies_to_its_date():
 def test_days_of_week_no_go_zone_only_applies_on_matching_weekdays():
     today = datetime.now(TZ).date()
     now = dt(today, 8)
-    # Pick a weekday that's definitely not "today" so we can assert it's untouched.
     other_weekday = (today.weekday() + 1) % 7
     zone = {"label": "Gym", "start_time": "17:00", "end_time": "18:00", "days_of_week": [other_weekday], "date": None}
 
@@ -152,8 +149,6 @@ def test_days_of_week_no_go_zone_only_applies_on_matching_weekdays():
 
 
 def test_sparse_events_do_not_truncate_lookahead_window():
-    # A single event on day 1 should not cut off free blocks on later days —
-    # the window always spans the full lookahead, not just dates with events.
     today = datetime.now(TZ).date()
     event_start = dt(today, 9)
     event_end = dt(today, 10)

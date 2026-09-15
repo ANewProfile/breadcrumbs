@@ -100,7 +100,6 @@ def test_run_schedule_includes_and_moves_already_scheduled_tasks(
 
     run_schedule(USER)
 
-    # "scheduled" tasks are included in the re-run, not just pending/unschedulable ones.
     find_query = mock_tasks_collection.find.call_args[0][0]
     assert set(find_query["status"]["$in"]) == {"pending", "unschedulable", "scheduled"}
 
@@ -243,12 +242,9 @@ def test_reschedule_missed_only_reassigns_past_tasks(
 
     reschedule_missed(USER)
 
-    # Only the missed task is handed to the assigner — the still-future
-    # scheduled task is left completely untouched.
     tasks_passed = mock_assign_tasks.call_args[0][0]
     assert [t["id"] for t in tasks_passed] == [missed_id]
 
-    # Its existing event gets moved, not duplicated.
     mock_update_event.assert_called_once_with(
         "creds", "missed-gcal-id",
         start_iso="2026-06-01T09:00:00-05:00", end_iso="2026-06-01T10:00:00-05:00",

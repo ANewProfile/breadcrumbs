@@ -5,8 +5,6 @@ SESSION_TTL_DAYS = 30
 
 
 def upsert_user(users_collection, *, google_sub: str, email: str, name: str | None, picture: str | None) -> dict:
-    """Finds or creates a user keyed by their stable Google account id (sub) —
-    this is the only identity we have; there's no separate password to check."""
     now = datetime.now(timezone.utc)
     return users_collection.find_one_and_update(
         {"google_sub": google_sub},

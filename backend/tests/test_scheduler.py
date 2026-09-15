@@ -107,8 +107,6 @@ def test_spills_to_next_block():
 
 
 def test_due_date_urgency_beats_subject_alphabetical_order():
-    # "Zoology" would lose to "Art" alphabetically, but it's due today —
-    # a hard deadline outranks alphabetical/subject grouping.
     today_str = dt(0).date().isoformat()
     tasks = [
         make_task("art_task", "Art", 30, due_date=None),
@@ -122,9 +120,6 @@ def test_due_date_urgency_beats_subject_alphabetical_order():
 
 
 def test_priority_beats_subject_within_same_urgency():
-    # "Art" would win over "Zoology" alphabetically, but "Zoology" is
-    # high-priority and "Art" is low — priority is the tiebreaker ahead of
-    # subject, not after it.
     tasks = [
         make_task("art_task", "Art", 30, priority="low"),
         make_task("zoology_task", "Zoology", 30, priority="high"),
@@ -137,9 +132,6 @@ def test_priority_beats_subject_within_same_urgency():
 
 
 def test_shorter_task_beats_subject_within_same_urgency_and_priority():
-    # "Art" would win over "Zoology" alphabetically, and both are the same
-    # priority, but "Zoology" is the shorter task — length is the tiebreaker
-    # ahead of subject, right after priority.
     tasks = [
         make_task("art_task", "Art", 30),
         make_task("zoology_task", "Zoology", 10),
@@ -155,7 +147,7 @@ def test_short_task_fills_todays_leftover_room_instead_of_an_emptier_day():
     # "filler" is due tomorrow, so it's processed first and forced onto today
     # (see the due-date exclusion tests), using 50 of today's 120 minutes and
     # leaving 70 free. Tomorrow stays completely empty. A task due later
-    # should still just drop into today's leftover room — the scheduler
+    # should still just drop into today's leftover room. the scheduler
     # always front-loads onto the earliest day with space, never holding a
     # day back for a later deadline.
     due_tomorrow = dt(0, day_offset=1).date().isoformat()
@@ -174,12 +166,6 @@ def test_short_task_fills_todays_leftover_room_instead_of_an_emptier_day():
 
 
 def test_later_due_task_still_lands_on_today_when_today_has_room():
-    # One task due tomorrow (must be done today — see the due-date exclusion
-    # tests) and one due in two days, competing for the same two days of
-    # room. The scheduler isn't afraid to double up on today just because the
-    # second task's deadline is further out — it front-loads onto the
-    # earliest day that fits, and only spills to tomorrow once today hits its
-    # daily-minutes cap.
     due_tomorrow = dt(0, day_offset=1).date().isoformat()
     due_in_two_days = dt(0, day_offset=2).date().isoformat()
     tasks = [
@@ -253,7 +239,7 @@ def test_continuous_work_cap_pushes_overflow_to_another_block():
     # The scheduler front-loads onto day 0 first: "a" and "b" both fit there
     # (40 + 40 = 80 minutes of uninterrupted Math, still within the 90-min
     # continuous-work cap). Only "c" overflows once a third 40-minute helping
-    # would push that streak to 120 minutes, so it spills to day 1 — day 0 is
+    # would push that streak to 120 minutes, so it spills to day 1; day 0 is
     # never left idle just to spread work out preemptively.
     day0 = dt(9, day_offset=0).date()
     day1 = dt(9, day_offset=1).date()
@@ -306,10 +292,6 @@ def test_break_between_subjects_only_applies_on_subject_switch():
 
 
 def test_no_due_dates_still_pack_into_earliest_day_within_the_cap():
-    # Three same-subject tasks, three days each with plenty of room and no
-    # due-date pressure — with no daily-minutes cap in the way, the
-    # scheduler packs all three into day 0 rather than spreading them out
-    # pre-emptively: getting things done sooner always wins.
     tasks = [make_task(f"t{i}", "Math", 30) for i in range(3)]
     blocks = [make_block(9, 11, day_offset=i) for i in range(3)]
     assignments, unfit = assign_tasks(tasks, blocks)
@@ -321,7 +303,7 @@ def test_no_due_dates_still_pack_into_earliest_day_within_the_cap():
 
 def test_daily_minutes_cap_spills_extra_tasks_to_the_next_day():
     # Same setup, but a daily cap tight enough that only two of the three
-    # 30-minute tasks fit on day 0 — the scheduler should hit that cap as
+    # 30-minute tasks fit on day 0. the scheduler should hit that cap as
     # closely as possible before spilling the rest onto day 1, rather than
     # leaving day 0 under-used.
     tasks = [make_task(f"t{i}", "Math", 30) for i in range(3)]
@@ -335,7 +317,7 @@ def test_daily_minutes_cap_spills_extra_tasks_to_the_next_day():
 
 
 def test_hard_due_date_cutoff_marks_task_unfit_past_due():
-    # Only a block after the due date exists — the scheduler must not push
+    # Only a block after the due date exists. The scheduler must not push
     # the task past its deadline just because a later block would fit.
     today_str = dt(0).date().isoformat()
     tasks = [make_task("late", "Math", 30, due_date=today_str)]
@@ -347,7 +329,7 @@ def test_hard_due_date_cutoff_marks_task_unfit_past_due():
 
 def test_task_never_scheduled_on_its_own_due_date():
     # A task is due the instant its due day starts, so it can't be completed
-    # that day — only day+2 (before the day+3 due date) is a valid target,
+    # that day - only day+2 (before the day+3 due date) is a valid target,
     # even though day+3 also has an empty block.
     due_str = dt(0, day_offset=3).date().isoformat()
     tasks = [make_task("t", "Math", 30, due_date=due_str)]
@@ -369,7 +351,7 @@ def test_task_due_today_can_still_be_scheduled_today():
 
 
 def test_preferred_time_of_day_places_task_within_that_window():
-    # Being willing to work at 8am doesn't mean it's preferred over 12pm —
+    # Being willing to work at 8am doesn't mean it's preferred over 12pm -
     # with the whole day free, an "afternoon" preference should land the
     # task at the start of the afternoon window, not the start of the day.
     tasks = [make_task("t", "Math", 30)]
@@ -398,12 +380,11 @@ def test_preferred_time_of_day_spills_into_rest_of_day_once_window_is_full():
 
 
 def test_preferred_time_of_day_spillover_prefers_slot_nearest_window_over_earliest():
-    # The afternoon window (12:00-17:00) has no room at all today — only a
+    # The afternoon window (12:00-17:00) has no room at all today. Only a
     # pre-dawn block and a late-evening block remain. The evening block is
     # only an hour past the window; the early block is hours before it. A
     # plain "earliest first" spillover would wrongly pick the early block
-    # just because it comes first in the day — proximity to the preferred
-    # window should win instead.
+    # just because it comes first in the day.
     tasks = [make_task("t", "Math", 30)]
     blocks = [make_block(6, 7), make_block(18, 19)]
     assignments, unfit = assign_tasks(tasks, blocks, preferred_time_of_day="afternoon")
@@ -435,8 +416,7 @@ def test_due_dated_tasks_use_the_earliest_available_day_not_the_one_nearest_the_
 def test_due_dated_tasks_still_spread_across_available_days_before_due():
     # Same due date, two same-subject tasks: the first takes the earliest
     # available day (day+2), and rather than exceeding the continuous-work
-    # cap there, the second spills to the other available day (day+3) —
-    # no soft-constraint relaxation needed since a whole other day is free.
+    # cap there, the second spills to the other available day (day+3)
     due_str = dt(0, day_offset=4).date().isoformat()
     tasks = [
         make_task("a", "Math", 30, due_date=due_str),
@@ -451,8 +431,7 @@ def test_due_dated_tasks_still_spread_across_available_days_before_due():
 
 
 def test_only_day_before_due_date_available_is_still_used():
-    # Only the day right before the due date has any free block at all —
-    # better to use it than to leave the task unschedulable.
+    # Only the day right before the due date has any free block at all
     due_str = dt(0, day_offset=3).date().isoformat()
     tasks = [make_task("t", "Math", 30, due_date=due_str)]
     blocks = [make_block(9, 10, day_offset=2)]

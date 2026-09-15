@@ -4,11 +4,6 @@ from zoneinfo import ZoneInfo
 
 
 def _earliest_slot(now: datetime) -> datetime:
-    """
-    Never schedule a task for right this instant — give the user a 10-minute
-    buffer after pressing "schedule", and land it on a clean 5-minute mark
-    rather than some arbitrary :07 or :23.
-    """
     candidate = (now + timedelta(minutes=10)).replace(second=0, microsecond=0)
     remainder = candidate.minute % 5
     if remainder:
@@ -33,10 +28,6 @@ def compute_free_blocks(events: list, day_start: str = "08:00", day_end: str = "
     now = datetime.now(tz)
     earliest = _earliest_slot(now)
 
-    # The scheduling window always spans "now" through now + lookahead_days,
-    # independent of whether any events exist in that range (get_events fetches
-    # this same fixed window regardless of event count, so a sparse or empty
-    # calendar should still yield free blocks across the full window).
     date_min = now.date()
     date_max = now.date() + timedelta(days=lookahead_days)
     if busy:

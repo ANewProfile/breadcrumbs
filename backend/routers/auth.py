@@ -98,13 +98,7 @@ def dev_mode_status():
 @router.api_route("/dev-login", methods=["GET", "POST"])
 def dev_login():
     """
-    Local-testing-only stand-in for the real Google OAuth round trip. Logs in
-    as a fixed fake user with no google_credentials, so downstream code (see
-    schedule.py) knows to run the scheduler against fake free/busy data
-    instead of a real calendar, and to skip creating real Google events.
-    Refuses to run unless DEV_MODE is set, so this can never be reachable
-    against a real deployment. Redirects into the app the same way the real
-    Google callback does, so it can be used as a plain clickable link.
+    Local-testing-only to avoid using Google OAuth while testing on a local dev environment. adds a "dev mode" button to the main page and just doesn't use real data
     """
     if not DEV_MODE:
         raise HTTPException(status_code=404)

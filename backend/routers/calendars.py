@@ -12,10 +12,7 @@ router = APIRouter()
 @router.get("")
 def read_calendars(user: dict = Depends(get_current_user)):
     """
-    Every calendar on the user's Google account they could choose to include
-    as busy time — their own, ones shared with them, and ones they've
-    subscribed to. Dev users have no real Google account, so they just get
-    the one fake "primary" calendar that _dev_fake_busy_events synthesizes.
+    Get calendars on the user's GCal that they might want to use to put "busy" events on
     """
     if user.get("is_dev_user"):
         return [{"id": "primary", "summary": "Dev calendar (simulated)", "primary": True}]

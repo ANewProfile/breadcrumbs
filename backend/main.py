@@ -5,8 +5,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from rate_limit import default_rate_limit
 from routers import tasks, schedule, settings, auth, account, no_go_zones, calendars
 
-# Applied to every route below, so no single session/IP can hammer the API or
-# database regardless of which endpoint they hit — see rate_limit.py.
+# rate limiting to protect against my friends
 app = FastAPI(dependencies=[Depends(default_rate_limit)])
 
 app.add_middleware(
@@ -16,8 +15,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Compresses JSON responses over 500 bytes (e.g. the task list) when the
-# client sends Accept-Encoding: gzip — every browser and Next.js's fetch do.
+
+# compressed json packages
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.include_router(tasks.router, prefix="/tasks")
 app.include_router(schedule.router, prefix="/schedule")

@@ -86,8 +86,6 @@ def test_disconnect_google_still_unsets_when_already_disconnected(mock_revoke, m
 @patch("services.account_service.get_credentials_for_user")
 @patch("services.account_service.revoke_credentials")
 def test_revoke_google_grant_revokes_without_writing_to_user_doc(mock_revoke, mock_get_creds):
-    # Used right before the user doc is deleted (account deletion) — it must not
-    # write a field to a document that's about to be erased anyway.
     mock_users = MagicMock()
     mock_get_creds.return_value = "creds"
 

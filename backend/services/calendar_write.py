@@ -22,10 +22,6 @@ def _is_rate_limit_error(e: HttpError) -> bool:
 
 
 def _execute_with_rate_limit_retry(request):
-    """Runs a googleapiclient request, retrying with exponential backoff + jitter
-    on Calendar API rate-limit errors. Bulk calls fire several of these per
-    worker thread in quick succession, so a single burst can trip Google's
-    per-user quota even though it clears again within ~100 seconds."""
     attempt = 0
     while True:
         try:

@@ -7,13 +7,6 @@ DEFAULT_CALENDAR_IDS = ["primary"]
 
 
 def list_calendars(creds) -> list[dict]:
-    """
-    Every calendar on this Google account: the user's own primary calendar,
-    secondary calendars they created, ones shared with them, and ones they've
-    subscribed to (e.g. a holidays feed) — anything showing up in their
-    Google Calendar UI. Lets the user pick which of these should count as
-    busy time for scheduling.
-    """
     service = build("calendar", "v3", credentials=creds)
     calendars = []
     page_token = None
@@ -59,16 +52,6 @@ def get_events(creds, lookahead_days=7, calendar_ids: list[str] | None = None):
 
 
 def search_events(creds, query: str, time_min_iso: str, time_max_iso: str | None = None) -> list:
-    """
-    Full-text searches the primary calendar (Google's q= param matches summary,
-    description, location, attendees — not just the title) for events starting
-    at or after time_min_iso. Paginates through every page since a school year's
-    worth of events can exceed a single response.
-
-    Pass time_max_iso when the caller knows how far into the future matching
-    events can possibly go — an unbounded search makes Google scan arbitrarily
-    far ahead just to confirm there's nothing left, which is slow.
-    """
     service = build("calendar", "v3", credentials=creds)
     list_kwargs = {
         "calendarId": "primary",

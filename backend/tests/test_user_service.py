@@ -81,8 +81,7 @@ def test_get_user_for_session_returns_user_for_valid_session():
 
 
 def test_get_user_for_session_handles_naive_datetime_from_mongo():
-    # pymongo returns naive datetimes by default even for UTC-stored values —
-    # this must not raise a naive/aware comparison error.
+    # pymongo returns naive datetimes by default even for UTC-stored values
     mock_sessions = MagicMock()
     mock_users = MagicMock()
     naive_future = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)

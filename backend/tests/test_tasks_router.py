@@ -67,7 +67,6 @@ def test_delete_nonexistent_task_raises_404(mock_collection):
 @patch("routers.tasks.delete_gcal_event")
 @patch("routers.tasks.tasks_collection")
 def test_delete_future_task_proceeds_when_google_disconnected(mock_collection, mock_delete_gcal, mock_creds):
-    # Google disconnected shouldn't block deleting the task itself — just skip the calendar cleanup.
     future_end = datetime.now(timezone.utc) + timedelta(hours=1)
     mock_collection.find_one.return_value = make_task(gcal_event_id="evt1", block_end=future_end)
     mock_creds.side_effect = ValueError("User has not connected a Google account")

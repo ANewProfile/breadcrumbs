@@ -107,12 +107,6 @@ def complete_task(task_id: str, body: CompleteIn, user: dict = Depends(get_curre
 
 @router.patch("/{task_id}/reschedule")
 def reschedule_task(task_id: str, body: RescheduleIn, user: dict = Depends(get_current_user)):
-    """
-    Manually moves a task to a specific time — for a free slot the user knows
-    about but hasn't put on their calendar. Refuses to double-book: rejects if
-    the new slot overlaps another scheduled task of this user or any real Google
-    Calendar event (other than the task's own event, which is what's being moved).
-    """
     task = tasks_collection.find_one({"_id": ObjectId(task_id), "user_id": user["_id"]})
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -187,6 +181,6 @@ def delete_task(task_id: str, user: dict = Depends(get_current_user)):
                 creds = get_credentials_for_user(user, users_collection)
                 delete_gcal_event(creds, gcal_event_id)
             except ValueError:
-                pass  # Google disconnected — nothing to clean up, don't block the local delete
+                pass  # Google disconnected
 
     tasks_collection.delete_one({"_id": ObjectId(task_id), "user_id": user["_id"]})

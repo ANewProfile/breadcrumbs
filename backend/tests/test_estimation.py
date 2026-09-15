@@ -42,7 +42,7 @@ def test_weighted_estimate_no_deviation_leaves_estimate_unchanged():
 
 
 def test_recent_deviation_outweighs_an_equally_sized_old_one():
-    # Same multiset of ratios {2.0, 1.0, 1.0, 1.0, 1.0} in both cases — only the
+    # Same multiset of ratios {2.0, 1.0, 1.0, 1.0, 1.0} in both cases so only the
     # chronological position of the outlier (2.0) differs.
     outlier_recent = [history_entry(2.0, days_ago=0)] + [
         history_entry(1.0, days_ago=i) for i in range(1, 5)

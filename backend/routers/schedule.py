@@ -17,14 +17,6 @@ router = APIRouter()
 
 
 def _dev_fake_busy_events(user_id) -> list[dict]:
-    """
-    Dev users have no real Google Calendar for get_events() to read, but their
-    already-scheduled tasks still need to show up as busy time — otherwise a
-    run that only touches a subset of tasks (e.g. reschedule-missed) has no
-    way to know another dev task already occupies a slot, and happily
-    double-books it. Synthesizes the same shape get_events() returns, from
-    this dev user's own scheduled tasks.
-    """
     events = []
     for t in tasks_collection.find({"user_id": user_id, "status": "scheduled"}):
         blocks = t.get("scheduled_blocks") or []
@@ -40,8 +32,6 @@ def _dev_fake_busy_events(user_id) -> list[dict]:
 
 
 def _google_state(user: dict, is_dev_user: bool, settings: dict):
-    """Returns (creds, events). Dev users have no real Google account, so
-    their busy time is faked from their own already-scheduled tasks instead."""
     if is_dev_user:
         return None, _dev_fake_busy_events(user["_id"])
     try:
@@ -74,8 +64,6 @@ def _with_estimates(tasks: list[dict], user_id) -> list[dict]:
 
 
 def _is_missed(task: dict) -> bool:
-    """A "scheduled" task whose block already ended without the task being
-    marked done — the user missed it."""
     blocks = task.get("scheduled_blocks") or []
     if not blocks:
         return False
@@ -93,16 +81,9 @@ def _apply_assignments(
     for task_id, block in assignments.items():
         task = task_lookup[task_id]
         existing_event_id = task.get("gcal_event_id")
-        # Dev fake user has no real Google credentials to write with, and the
-        # whole point of dev-login is to preview scheduling without touching
-        # a real calendar — so skip the actual Google Calendar API call. Each
-        # task gets its own fake id (not a shared literal) so _dev_fake_busy_events
-        # and the own-event exclusion below can tell tasks apart.
         if is_dev_user:
             gcal_id = existing_event_id or f"dev-fake-{task_id}"
         elif existing_event_id:
-            # Already on the calendar from a previous run — move it rather
-            # than creating a second, duplicate event.
             update_gcal_event(creds, existing_event_id, start_iso=block["start"], end_iso=block["end"])
             gcal_id = existing_event_id
         else:
@@ -128,9 +109,6 @@ def _apply_assignments(
     for task_id in unfit_ids:
         task = task_lookup[task_id]
         existing_event_id = task.get("gcal_event_id")
-        # A task that was scheduled before but got bumped out this run no
-        # longer has a slot, so its old calendar event is stale — remove it
-        # rather than leaving a phantom event behind.
         if existing_event_id and not is_dev_user:
             delete_gcal_event(creds, existing_event_id)
         tasks_collection.update_one(
@@ -149,9 +127,6 @@ def run_schedule(user: dict = Depends(get_current_user)):
     creds, events = _google_state(user, is_dev_user, settings)
     no_go_zones = list(no_go_zones_collection.find({"user_id": user["_id"]}))
 
-    # Every run re-optimizes the full set of not-yet-done tasks, not just ones
-    # added since the last run — otherwise adding a new urgent task could
-    # never bump an already-scheduled one out of its slot.
     schedulable_tasks = [
         serialize(t)
         for t in tasks_collection.find(
@@ -161,10 +136,6 @@ def run_schedule(user: dict = Depends(get_current_user)):
     if not schedulable_tasks:
         raise HTTPException(status_code=400, detail="No pending tasks to schedule")
 
-    # A task already scheduled from a previous run holds its own real Google
-    # Calendar event, which would otherwise show up as busy time and block the
-    # task from ever being moved (it would collide with itself). These tasks
-    # are ours to move, so exclude their own events from the free/busy read.
     own_event_ids = {t["gcal_event_id"] for t in schedulable_tasks if t.get("gcal_event_id")}
     if own_event_ids:
         events = [e for e in events if e.get("id") not in own_event_ids]
@@ -206,13 +177,6 @@ def run_schedule(user: dict = Depends(get_current_user)):
 
 @router.post("/reschedule-missed", dependencies=[Depends(rate_limit("15/minute"))])
 def reschedule_missed(user: dict = Depends(get_current_user)):
-    """
-    Finds tasks that were scheduled into a block that has already passed
-    without being marked done — e.g. the user missed a task — and finds each
-    one a fresh, future slot. Scoped to just those tasks, so it doesn't
-    reshuffle everything else already correctly scheduled the way a full
-    /run does.
-    """
     settings = get_settings(settings_collection, user["_id"])
     is_dev_user = bool(user.get("is_dev_user"))
     creds, events = _google_state(user, is_dev_user, settings)
@@ -226,9 +190,6 @@ def reschedule_missed(user: dict = Depends(get_current_user)):
     if not missed_tasks:
         raise HTTPException(status_code=400, detail="No missed tasks to reschedule")
 
-    # Each missed task's own event already ended in the past, before the
-    # free/busy window even starts, so it never shows up as busy — no need to
-    # exclude it the way a full /run does for still-future scheduled tasks.
     free_blocks = compute_free_blocks(
         events,
         day_start=settings["day_start"],
